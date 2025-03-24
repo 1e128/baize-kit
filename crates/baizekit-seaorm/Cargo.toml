@@ -1,0 +1,16 @@
+[package]
+name = "baizekit-seaorm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+description = "SeaORM ToolKit"
+
+[dependencies]
+envy = "0.4.2"
+sea-orm = "1.1.7"
+serde = { version = "1.0.219", features = ["derive"] }
+tokio = { version = "1.44.1", features = ["sync"] }

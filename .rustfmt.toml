@@ -1,0 +1,11 @@
+max_width = 120
+use_small_heuristics = "MAX"
+chain_width = 80
+array_width = 60
+
+fn_single_line = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Module"
+reorder_imports = true
+reorder_impl_items = true
+single_line_let_else_max_width = 100
