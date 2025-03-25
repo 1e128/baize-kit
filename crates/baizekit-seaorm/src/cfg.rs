@@ -1,9 +1,7 @@
-use serde::Deserialize;
 use envy;
-
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct Config {
     /// 数据库连接字符串
     pub database_url: String,
@@ -16,7 +14,5 @@ pub struct Config {
 
 impl Config {
     #[inline(always)]
-    pub fn try_new_from_env() -> Result<Self, String> {
-        envy::from_env::<Self>().map_err(|e| e.to_string())
-    }
+    pub fn try_new_from_env() -> Result<Self, String> { envy::from_env::<Self>().map_err(|e| e.to_string()) }
 }
