@@ -7,6 +7,7 @@ homepage.workspace = true
 repository.workspace = true
 license.workspace = true
 readme.workspace = true
+description = "API ToolKit"
 
 [dependencies]
 baizekit-serde = { workspace = true }
