@@ -23,10 +23,6 @@ categories = ["database", "web-programming", "serialization"]
 
 
 [workspace.dependencies]
-baizekit-api = { path = "crates/baizekit-api" }
-baizekit-seaorm = { path = "crates/baizekit-seaorm" }
-baizekit-serde = { path = "crates/baizekit-serde" }
-
 # 核心依赖
 serde = "1.0.219"
 serde_json = "1.0.140"

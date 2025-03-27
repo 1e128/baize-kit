@@ -10,7 +10,7 @@ readme.workspace = true
 description = "API ToolKit"
 
 [dependencies]
-baizekit-serde = { workspace = true }
+baizekit-serde = { version = "0.1.3" }
 
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
