@@ -1,15 +1,33 @@
 [workspace]
+# 工作空间成员
 members = [
-    "crates/baizekit-seaorm",
+    "crates/baizekit-api",    # API 接口定义
+    "crates/baizekit-seaorm", # SeaORM 数据库工具
+    "crates/baizekit-serde",  # 序列化/反序列化工具
 ]
 resolver = "3"
 
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.85.0"
 homepage = "https://github.com/1e128/baize-kit"
 repository = "https://github.com/1e128/baize-kit.git"
 license = "MIT"
 readme = "README.md"
+# 添加关键词，便于在 crates.io 上搜索
+keywords = ["api", "seaorm", "serde", "toolkit"]
+# 添加分类
+categories = ["database", "web-programming", "serialization"]
+
+
+[workspace.dependencies]
+baizekit-api = { path = "crates/baizekit-api" }
+baizekit-seaorm = { path = "crates/baizekit-seaorm" }
+baizekit-serde = { path = "crates/baizekit-serde" }
+
+# 核心依赖
+serde = "1.0.219"
+serde_json = "1.0.140"
+rust_decimal = "1.37.1"
