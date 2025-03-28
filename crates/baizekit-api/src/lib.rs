@@ -17,7 +17,7 @@
 //! use baizekit_api::prelude::*;
 //! use axum::extract::Json;
 //!
-//! async fn handler(page: PageRequest) -> Result<ApiOK<Page<Data>>, ApiError<Error>> {
+//! async fn handler(page: PageRequest) -> Result<ApiOK<Page<()>>, ApiError<()>> {
 //!     // 处理请求
 //!     let data = Page {
 //!         total: 100,
@@ -29,9 +29,9 @@
 //! }
 //! ```
 
-pub mod extract;    // 数据提取模块，用于从请求中提取参数和认证信息
-pub mod request;    // 请求处理模块，包含分页等通用请求结构
-pub mod response;   // 响应封装模块，包含统一响应格式和错误处理
+pub mod extract; // 数据提取模块，用于从请求中提取参数和认证信息
+pub mod request; // 请求处理模块，包含分页等通用请求结构
+pub mod response; // 响应封装模块，包含统一响应格式和错误处理
 
 /// 预导入模块
 ///
