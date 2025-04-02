@@ -1,0 +1,21 @@
+[package]
+name = "baizekit-redis"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+description = "Redis ToolKit"
+
+[dependencies]
+redis = { version = "0.29.1", features = ["tokio-comp"] }
+serde = { workspace = true, features = ["derive"] }
+
+[features]
+cluster = ["redis/cluster"]
+cluster_sync = [
+    "cluster",
+    "redis/cluster-async"
+]
