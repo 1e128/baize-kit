@@ -4,8 +4,10 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     /// 数据库连接字符串
+    #[serde(alias = "database_url", alias = "dsn")]
     pub database_url: String,
     /// 数据库schema, 仅用于 postgres
+    #[serde(alias = "database_schema", alias = "schema")]
     pub database_schema: Option<String>,
     /// 是否开启sqlx的日志
     #[serde(default)]

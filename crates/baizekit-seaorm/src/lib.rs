@@ -3,15 +3,16 @@ use std::time::Duration;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::sync::OnceCell;
 
-pub mod cfg;
+mod cfg;
+
+pub use cfg::Config;
+pub use sea_orm;
 
 static DB_CONNECTION: OnceCell<DatabaseConnection> = OnceCell::const_new();
 
-pub async fn try_get_database_connection() -> Result<&'static DatabaseConnection, String> {
+pub async fn get_or_init_database_connection(cfg: Config) -> Result<&'static DatabaseConnection, String> {
     DB_CONNECTION
         .get_or_try_init(|| async {
-            let cfg = cfg::Config::try_new_from_env()?;
-
             let mut opt = ConnectOptions::new(cfg.database_url)
                 .max_connections(100)
                 .min_connections(5)
@@ -31,7 +32,13 @@ pub async fn try_get_database_connection() -> Result<&'static DatabaseConnection
         .await
 }
 
+pub async fn try_get_database_connection() -> Result<&'static DatabaseConnection, String> {
+    get_or_init_database_connection(Config::try_new_from_env()?).await
+}
+
+pub fn get_database_connection() -> Option<&'static DatabaseConnection> { DB_CONNECTION.get() }
+
 #[inline(always)]
-pub async fn must_get_database_connection() -> &'static DatabaseConnection {
-    try_get_database_connection().await.expect("Failed to get database connection")
+pub fn must_get_database_connection() -> &'static DatabaseConnection {
+    get_database_connection().expect("Failed to get database connection")
 }

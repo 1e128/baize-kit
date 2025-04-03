@@ -2,13 +2,15 @@ use std::sync::OnceLock;
 
 use tracing_appender::non_blocking::WorkerGuard;
 
-use crate::config::LogConfig;
 use crate::format::LogFormat;
 use crate::timer::LocalTimer;
 
-pub mod config;
+mod config;
 mod format;
 mod timer;
+
+pub use config::*;
+pub use tracing;
 
 static TRACING_APPENDER_GUARD: OnceLock<WorkerGuard> = OnceLock::new();
 
