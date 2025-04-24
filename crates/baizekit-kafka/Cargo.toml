@@ -1,0 +1,19 @@
+[package]
+name = "baizekit-kafka"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+keywords.workspace = true
+description = "Kafka ToolKit"
+
+
+[dependencies]
+rdkafka = { version = "0.37.0" }
+snafu = { version = "0.8.5" }
+serde = { version = "1.0.219" }
+strum = { version = "0.27.1", features = ["derive"] }
+tracing = { version = "0.1.41" }
