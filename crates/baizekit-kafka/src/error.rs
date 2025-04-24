@@ -11,6 +11,13 @@ pub enum Error {
         location: Location,
     },
 
+    #[snafu(display("JsonError: {source}"))]
+    JsonError {
+        source: serde_json::Error,
+        #[snafu(implicit)]
+        location: Location,
+    },
+
     #[snafu(display("SendError: {message}"))]
     SendError {
         message: String,

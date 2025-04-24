@@ -15,5 +15,9 @@ description = "Kafka ToolKit"
 rdkafka = { version = "0.37.0" }
 snafu = { version = "0.8.5" }
 serde = { version = "1.0.219" }
+serde_json = { version = "1.0.140" }
 strum = { version = "0.27.1", features = ["derive"] }
 tracing = { version = "0.1.41" }
+
+
+[dev-dependencies]

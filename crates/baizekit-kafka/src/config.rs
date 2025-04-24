@@ -1,12 +1,45 @@
 use std::collections::HashMap;
-use std::time::Duration;
 
 use rdkafka::ClientConfig;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use snafu::ResultExt;
 use strum::{Display, EnumString};
 
+use crate::error::{JsonSnafu, Result};
+
+pub trait ToRdkafkaConfig: Serialize {
+    fn to_rdkafka_config(&self) -> Result<ClientConfig> {
+        let value = serde_json::to_value(&self).context(JsonSnafu)?;
+
+        let mut cfg = ClientConfig::new();
+        let Value::Object(value) = value else {
+            return Ok(cfg);
+        };
+
+        for (key, value) in value {
+            match value {
+                Value::Null => {}
+                Value::Bool(value) => {
+                    cfg.set(key, if value { "true" } else { "false" });
+                }
+                Value::Number(value) => {
+                    cfg.set(key, value.to_string());
+                }
+                Value::String(value) => {
+                    cfg.set(key, value);
+                }
+                Value::Array(_) => {}
+                Value::Object(_) => {}
+            }
+        }
+
+        Ok(cfg)
+    }
+}
+
 /// Kafka Producer 的 acks 设置
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Display, EnumString, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Display, EnumString, Deserialize, Serialize)]
 pub enum Ack {
     /// 不等待任何 broker 确认（最快，最不可靠）
     #[strum(serialize = "0")]
@@ -25,86 +58,122 @@ pub enum Ack {
     All,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
 pub struct ProducerConfig {
+    #[serde(rename = "bootstrap.servers")]
     pub bootstrap_servers: String,
 
+    #[serde(rename = "client.id")]
     pub client_id: Option<String>,
 
     /// all | 1 | 0
+    #[serde(rename = "acks")]
     pub acks: Ack,
 
-    /// 延迟发送，减少请求数
-    pub linger_ms: Option<u64>,
+    /// 重试次数
+    #[serde(rename = "retries")]
+    pub retries: i64,
 
-    /// 批量发送的最大字节数
-    pub batch_size: Option<usize>,
+    /// 在尝试将一个失败的请求重试到给定的 topic 分区之前需要等待的时间。这避免在某些失败场景下在紧凑的循环中重复发送请求。
+    #[serde(rename = "retry.backoff.ms")]
+    pub retry_backoff_ms: Option<u64>,
 
-    /// gzip, snappy, lz4, zstd
-    pub compression_type: Option<String>,
+    /// 在发生阻塞之前，客户端的一个连接上允许出现未确认请求的最大数量。
+    ///
+    /// 注意，如果这个设置大于1，并且有失败的发送，则消息可能会由于重试而导致重新排序(如果重试是启用的话)
+    #[serde(rename = "max.in.flight.requests.per.connection")]
+    pub max_in_flight_requests_per_connection: Option<i64>,
 
-    /// 是否开启幂等发送
+    /// 是否启用幂等性
+    #[serde(rename = "enable.idempotence")]
     pub enable_idempotence: bool,
 
-    /// 自定义参数
-    pub custom: HashMap<String, String>,
+    /// 客户端等待请求响应的最大时长。
+    /// 如果超时未收到响应，则客户端将在必要时重新发送请求，如果重试的次数达到允许的最大重试次数，则请求失败。
+    /// 这个参数应该比 replica.lag.time.max.ms （Broker 的一个参数）更大，以降低由于不必要的重试而导致的消息重复的可能性。
+    #[serde(rename = "request.timeout.ms")]
+    pub request_timeout_ms: Option<u64>,
+
+    /// gzip, snappy, lz4, zstd
+    #[serde(rename = "compression.type")]
+    pub compression_type: Option<String>,
+
+    #[serde(flatten)]
+    pub other: HashMap<String, String>,
 }
 
-impl Default for ProducerConfig {
-    fn default() -> Self {
-        Self {
-            bootstrap_servers: "localhost:9092".to_string(),
-            client_id: Some("my-producer".to_string()),
-            acks: Ack::default(),
-            linger_ms: None,
-            batch_size: None,
-            compression_type: None,
-            enable_idempotence: false,
-            custom: Default::default(),
-        }
-    }
+impl ToRdkafkaConfig for ProducerConfig {}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct ConsumerConfig {
+    #[serde(rename = "bootstrap.servers")]
+    pub bootstrap_servers: String,
+
+    #[serde(rename = "group.id")]
+    pub group_id: String,
+
+    #[serde(rename = "enable.auto.commit")]
+    pub enable_auto_commit: bool,
+
+    #[serde(rename = "auto.commit.interval.ms")]
+    pub auto_commit_interval_ms: i32,
+
+    #[serde(rename = "session.timeout.ms")]
+    pub session_timeout_ms: i32,
+
+    #[serde(rename = "auto.offset.reset")]
+    pub auto_offset_reset: AutoOffsetReset,
+
+    #[serde(rename = "max.poll.records")]
+    pub max_poll_records: i32,
+
+    #[serde(rename = "fetch.min.bytes")]
+    pub fetch_min_bytes: i32,
+
+    #[serde(flatten)]
+    pub extra: HashMap<String, String>,
 }
 
-impl ProducerConfig {
-    pub fn flush_timeout(&self) -> Duration {
-        let flush_timeout_ms = self
-            .custom
-            .get("flush_timeout_ms")
-            .map(|s| s.parse::<u64>().ok())
-            .flatten()
-            .unwrap_or(1000);
-        Duration::from_millis(flush_timeout_ms)
-    }
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AutoOffsetReset {
+    Earliest,
+    #[default]
+    Latest,
+    None,
+}
 
-    pub fn to_rdkafka_config(&self) -> ClientConfig {
-        let mut config = ClientConfig::new();
-        config.set("bootstrap.servers", &self.bootstrap_servers);
-        config.set("acks", self.acks.to_string());
+impl ToRdkafkaConfig for ConsumerConfig {}
 
-        if let Some(ref id) = self.client_id {
-            config.set("client.id", id);
-        }
+#[cfg(test)]
+mod tests {
+    use crate::config::ToRdkafkaConfig;
 
-        if let Some(ms) = self.linger_ms {
-            config.set("linger.ms", &ms.to_string());
-        }
+    #[test]
+    fn serde_producer_config() {
+        let config = r#"
+        {
+            "bootstrap.servers": "localhost:9092",
+            "client.id": "test",
+            "acks": "all",
+            "retries": 5,
+            "retry.backoff.ms": 1000,
+            "max.in.flight.requests.per.connection": 5,
+            "enable.idempotence": true,
+            "request.timeout.ms": 5000,
+            "compression.type": "gzip",
+            "key": "value"
+        }"#;
 
-        if let Some(size) = self.batch_size {
-            config.set("batch.size", &size.to_string());
-        }
+        let config: super::ProducerConfig = serde_json::from_str(config).unwrap();
 
-        if let Some(ref compression) = self.compression_type {
-            config.set("compression.type", compression);
-        }
+        println!("{:?}", config);
 
-        if self.enable_idempotence {
-            config.set("enable.idempotence", "true");
-        }
+        let kafka_conf = config.to_rdkafka_config().unwrap();
+        println!("{:?}", kafka_conf.config_map());
 
-        for (k, v) in &self.custom {
-            config.set(k, v);
-        }
-
-        config
+        assert!(false);
     }
 }

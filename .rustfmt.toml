@@ -3,7 +3,6 @@ use_small_heuristics = "MAX"
 chain_width = 80
 array_width = 60
 
-fn_single_line = true
 group_imports = "StdExternalCrate"
 imports_granularity = "Module"
 reorder_imports = true
