@@ -5,8 +5,8 @@ use std::time::Duration;
 use rdkafka::producer::{BaseProducer, BaseRecord, Producer};
 use snafu::ResultExt;
 
+use crate::config::ProducerConfig;
 use crate::error::{KafkaSnafu, RecvSnafu, Result, SendSnafu};
-use crate::ProducerConfig;
 
 enum Command {
     SendWithFlush(Message, Sender<Result<()>>),

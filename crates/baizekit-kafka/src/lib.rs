@@ -1,7 +1,5 @@
-mod config;
-mod error;
-mod sync_producer;
+pub mod config;
+pub mod error;
+pub mod sync_producer;
 
-pub use config::*;
 pub use rdkafka;
-pub use sync_producer::*;
