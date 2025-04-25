@@ -5,7 +5,7 @@ use std::time::Duration;
 use rdkafka::producer::{BaseProducer, BaseRecord, Producer};
 use snafu::ResultExt;
 
-use crate::config::{ProducerConfig, ToRdkafkaConfig};
+use crate::config::{ProducerConfig, ToRdkafkaClientConfig};
 use crate::error::{KafkaSnafu, RecvSnafu, Result, SendSnafu};
 
 const DEFAULT_FLUSH_TIMEOUT: Duration = Duration::from_millis(5000);
@@ -69,7 +69,7 @@ impl SyncProducer {
     pub fn try_new(cfg: ProducerConfig) -> Result<Self> {
         let (tx, receiver) = mpsc::channel();
 
-        let producer: BaseProducer = cfg.to_rdkafka_config()?.create().context(KafkaSnafu)?;
+        let producer: BaseProducer = cfg.to_client_config()?.create().context(KafkaSnafu)?;
 
         thread::spawn(move || {
             let mut producer = ProducerActor::new(receiver, producer);
@@ -79,10 +79,14 @@ impl SyncProducer {
         Ok(SyncProducer { sender: tx })
     }
 
+    #[inline(always)]
     pub fn send(&self, topic: String, key: String, payload: String) -> Result<()> {
-        let (resp_tx, resp_rx) = mpsc::channel();
+        self.send_message(Message { topic, key: Some(key), payload })
+    }
 
-        let message = Message { topic, key: Some(key), payload };
+    #[inline]
+    pub fn send_message(&self, message: Message) -> Result<()> {
+        let (resp_tx, resp_rx) = mpsc::channel();
 
         self.sender
             .send(Command::SendWithFlush { message, respond_to: resp_tx, flush_timeout: None })
@@ -91,6 +95,7 @@ impl SyncProducer {
         resp_rx.recv().map_err(|e| RecvSnafu { message: e.to_string() }.build())?
     }
 
+    #[inline(always)]
     pub fn close(&self) {
         self.sender.send(Command::Shutdown).ok();
     }
