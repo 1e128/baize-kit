@@ -100,3 +100,15 @@ impl SyncProducer {
         self.sender.send(Command::Shutdown).ok();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sync_producer() {
+        let mut cfg = ProducerConfig::default();
+        cfg.high.bootstrap_servers = "127.0.0.1:9092".to_string();
+        let producer = SyncProducer::try_new(cfg).unwrap();
+    }
+}

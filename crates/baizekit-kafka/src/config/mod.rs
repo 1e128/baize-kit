@@ -51,7 +51,12 @@ impl ToRdkafkaClientConfig for ConsumerConfig {}
 
 #[cfg(test)]
 mod tests {
-    use crate::config::ToRdkafkaClientConfig;
+    use rdkafka::admin::AdminClient;
+    use rdkafka::client::DefaultClientContext;
+    use rdkafka::consumer::BaseConsumer;
+    use rdkafka::producer::BaseProducer;
+
+    use crate::config::{AdminConfig, ConsumerConfig, ProducerConfig, ToRdkafkaClientConfig};
 
     #[test]
     fn serde_producer_config() {
@@ -73,5 +78,27 @@ mod tests {
 
         let kafka_conf = config.to_client_config().unwrap();
         println!("{:?}", kafka_conf.config_map());
+    }
+
+    #[test]
+    fn test_new_producer() {
+        let mut cfg = ProducerConfig::default();
+        cfg.high.bootstrap_servers = "127.0.0.1:9092".to_string();
+        let _producer: BaseProducer = cfg.to_client_config().unwrap().create().unwrap();
+    }
+
+    #[test]
+    fn test_new_consumer() {
+        let mut cfg = ConsumerConfig::default();
+        cfg.high.bootstrap_servers = "127.0.0.1:9092".to_string();
+        cfg.high.group_id = "test".to_string();
+        let _consumer: BaseConsumer = cfg.to_client_config().unwrap().create().unwrap();
+    }
+
+    #[test]
+    fn test_new_admin() {
+        let mut cfg = AdminConfig::default();
+        cfg.high.bootstrap_servers = "127.0.0.1:9092".to_string();
+        let _admin: AdminClient<DefaultClientContext> = cfg.to_client_config().unwrap().create().unwrap();
     }
 }

@@ -22,7 +22,7 @@ pub enum IsolationLevel {
 pub struct ConsumerConfigHighLevel {
     /// Kafka 集群地址
     #[serde(rename = "bootstrap.servers")]
-    bootstrap_servers: String,
+    pub bootstrap_servers: String,
 
     /// ### fetch.min.bytes
     ///
@@ -340,33 +340,6 @@ pub struct ConsumerConfigMediumLevel {
     #[serde(rename = "max.poll.interval.ms")]
     pub max_poll_interval_ms: i32,
 
-    /// ### max.poll.records
-    ///
-    /// > 定义每次调用 `poll()` 时，消费者最多从 Kafka 拉取的消息数量。
-    ///
-    /// ---
-    ///
-    /// #### 工作原理
-    /// - `max.poll.records` 限制每次拉取的最大记录数；
-    /// - 该参数控制消费者在每次 `poll()` 调用时从 Kafka 拉取多少条消息，默认值通常为 `500`；
-    /// - 拉取的消息数不会超过该值，即使消费者有能力处理更多的消息。
-    ///
-    /// ---
-    ///
-    /// #### 使用建议
-    /// - 默认值为 `500`；根据消费者的处理能力来调整此值；
-    /// - 设置较小的值可以减少消费者处理大量数据时的内存占用，适合低延迟场景；
-    /// - 设置较大的值可以提高吞吐量，减少频繁的网络请求，但可能导致较高的延迟。
-    ///
-    /// ---
-    ///
-    /// #### 注意事项
-    /// - `max.poll.records` 不影响消费者与 Kafka 的连接稳定性，但会影响每次 `poll()` 返回的消息量；
-    /// - 如果设置过小，消费者的吞吐量会降低，但响应速度可能较快；
-    /// - 如果设置过大，消费者的内存占用会增加，并可能导致较长时间才能处理完每次拉取的数据。
-    #[serde(rename = "max.poll.records")]
-    pub max_poll_records: i32,
-
     /// ### partition.assignment.strategy
     ///
     /// > 消费者用于分配分区的策略。
@@ -405,7 +378,6 @@ impl Default for ConsumerConfigMediumLevel {
             fetch_max_bytes: 52428800,
             isolation_level: IsolationLevel::ReadUncommitted,
             max_poll_interval_ms: 300000,
-            max_poll_records: 500,
             partition_assignment_strategy: "range".to_string(),
         }
     }
@@ -495,34 +467,6 @@ pub struct ConsumerConfigLowLevel {
     #[serde(rename = "client.id")]
     pub client_id: String,
 
-    /// ### fetch.max.wait.ms
-    ///
-    /// > 消费者在进行 fetch 请求时，最多等待的数据积累时间（毫秒）。
-    ///
-    /// ---
-    ///
-    /// #### 工作原理
-    /// - 消费者发送 fetch 请求时，Kafka 会等待指定的时间，直到收集到足够的数据或时间到达；
-    /// - 如果在 `fetch.max.wait.ms` 时间内数据不足，Kafka 会返回已获取的数据，即使数据量未达到 `fetch.min.bytes`；
-    /// - 该配置项与 `fetch.min.bytes` 配合使用，用于控制吞吐和延迟之间的权衡。
-    ///
-    /// ---
-    ///
-    /// #### 使用建议
-    /// - 默认值通常为 500 毫秒；
-    /// - 如果希望在吞吐量和延迟之间取得平衡，可以适当调大该值；
-    /// - 增加该值可以减少请求次数，提升吞吐量，但会带来更高的延迟；
-    /// - 如果对低延迟有严格要求，可以适当调小该值，但可能会导致更多的请求。
-    ///
-    /// ---
-    ///
-    /// #### 注意事项
-    /// - 如果与 `fetch.min.bytes` 配合使用，设置 `fetch.max.wait.ms` 可以更好地控制吞吐和延迟；
-    /// - 如果设置过大，可能导致消费者等待时间过长，影响实时性；
-    /// - 配合 `max.partition.fetch.bytes` 和 `fetch.min.bytes` 一起使用时，可以控制每次 fetch 请求的数据量和等待时间。
-    #[serde(rename = "fetch.max.wait.ms")]
-    pub fetch_max_wait_ms: i32,
-
     /// ### reconnect.backoff.max.ms
     ///
     /// > 消费者与 Kafka 集群断开连接后，重试连接的最大等待时间（毫秒）。
@@ -611,7 +555,6 @@ impl Default for ConsumerConfigLowLevel {
             auto_commit_interval_ms: 5000,
             check_crcs: true,
             client_id: "".to_string(),
-            fetch_max_wait_ms: 500,
             reconnect_backoff_max_ms: 1000,
             reconnect_backoff_ms: 50,
             retry_backoff_ms: 100,

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct AdminConfigHighLevel {
     /// Kafka 集群地址
     #[serde(rename = "bootstrap.servers")]
-    bootstrap_servers: String,
+    pub bootstrap_servers: String,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]

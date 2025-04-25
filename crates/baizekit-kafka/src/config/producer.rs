@@ -63,34 +63,6 @@ pub struct ProducerConfigHighLevel {
     /// - 即使 `acks = all`，也无法保证消费者成功消费，只表示消息已被 Kafka 持久化。
     pub acks: Ack,
 
-    /// ### buffer.memory
-    ///
-    /// > Kafka 生产者可用的内存缓冲区大小，用于存储待发送的消息。
-    ///
-    /// ---
-    ///
-    /// #### 工作原理
-    /// - 生产者通过内存缓冲区将消息缓存，在达到 `buffer.memory` 设置的大小后，生产者会等待缓冲区有足够的空间才能继续发送消息。
-    /// - 如果缓冲区已满，生产者将根据配置（如 `max.block.ms`）决定是否阻塞线程，或抛出异常。
-    /// - 大小配置较大的缓冲区可以提高吞吐量，但也会增加内存使用，导致内存占用过高。
-    ///
-    /// ---
-    ///
-    /// #### 使用建议
-    /// - 默认值一般为 `33554432` 字节（32MB），可以根据生产者的负载来调整该值；
-    /// - 在吞吐量较高的场景下，可以适当增大该值，以避免频繁的磁盘写入；
-    /// - 不建议将该值设置得过大，否则可能导致内存过载，影响系统稳定性；
-    /// - 设置的值应根据机器的内存大小来平衡性能与内存占用。
-    ///
-    /// ---
-    ///
-    /// #### 注意事项
-    /// - 如果生产者未及时发送消息，缓冲区可能会被填满，导致发送延迟增加；
-    /// - 配合 `max.block.ms` 参数使用，可以灵活控制缓冲区满时的行为，避免过长的阻塞；
-    /// - 在高并发消息场景下，适当增大 `buffer.memory` 可以减少频繁的 IO 操作，提高吞吐量。
-    #[serde(rename = "buffer.memory")]
-    pub buffer_memory: usize,
-
     /// ### compression.type
     ///
     /// > 指定 Kafka 生产者在发送消息时使用的压缩算法类型。
@@ -155,13 +127,7 @@ pub struct ProducerConfigHighLevel {
 
 impl Default for ProducerConfigHighLevel {
     fn default() -> Self {
-        Self {
-            bootstrap_servers: "".to_string(),
-            acks: Ack::Leader,
-            buffer_memory: 33554432,
-            compression_type: "none".to_string(),
-            retries: 0,
-        }
+        Self { bootstrap_servers: "".to_string(), acks: Ack::Leader, compression_type: "none".to_string(), retries: 0 }
     }
 }
 
@@ -251,63 +217,6 @@ pub struct ProducerConfigMediumLevel {
     #[serde(rename = "linger.ms")]
     pub linger_ms: i32,
 
-    /// ### max.block.ms
-    ///
-    /// > Producer 在发送缓冲区满或元数据不可用时，`send()` 和 `partitionsFor()` 等操作的最大阻塞时间（单位：毫秒）。
-    ///
-    /// ---
-    ///
-    /// #### 工作原理
-    /// - Kafka Producer 有一个全局缓冲区用于缓存待发送的消息；
-    /// — 当缓冲区满时（受 `buffer.memory` 限制），调用 `send()` 会阻塞；
-    /// — 当分区元数据还未获取时（通常在首次连接或 topic 不存在时），调用 `send()` 也会阻塞；
-    /// — `max.block.ms` 限定了这种阻塞的最长时间，超时将抛出异常（`TimeoutException`）。
-    ///
-    /// ---
-    ///
-    /// #### 使用建议
-    /// - 默认值为 60000 毫秒（60 秒）；
-    /// — 若应用无法容忍长时间阻塞，可适当调小该值（例如 10000ms）；
-    /// — 在高并发或网络不稳定环境中，建议监控是否频繁触发该超时，适当增加 `buffer.memory` 或优化 topic metadata 加载。
-    ///
-    /// ---
-    ///
-    /// #### 注意事项
-    /// - 并不是消息传输的超时时间，而是“**客户端阻塞等待资源**”的最大时间；
-    /// — 如果经常遇到此限制，可能需要：
-    /// - 增加 `buffer.memory`
-    /// - 减小生产速率
-    /// - 检查 topic 是否存在或配置正确
-    #[serde(rename = "max.block.ms")]
-    pub max_block_ms: i32,
-
-    /// ### max.request.size
-    ///
-    /// > Producer 客户端单次请求允许发送的最大数据大小（单位：字节）。
-    ///
-    /// ---
-    ///
-    /// #### 工作原理
-    /// - 每条 Kafka 消息最终都会被封装进一个请求发送到 broker；
-    /// — 如果单个请求的大小超过此限制，Producer 会抛出异常（通常为 `RecordTooLargeException`）；
-    /// — 消息的最终大小包括 key、value、headers 和所有协议开销。
-    ///
-    /// ---
-    ///
-    /// #### 使用建议
-    /// - 默认值为 `1048576` 字节（即 1MB）；
-    /// — 如果应用需要发送较大的消息（如图片、日志压缩包等），需要增大该值；
-    /// — 该值不应超过 broker 端的 `message.max.bytes` 和 topic 的 `max.message.bytes`，否则消息仍会被 broker 拒收。
-    ///
-    /// ---
-    ///
-    /// #### 注意事项
-    /// - Producer 会尝试将多个 record 聚合成一个 batch 并一起发送，整个 batch 的大小也受到该值限制；
-    /// — 增大该值会增加内存消耗和网络延迟，应权衡使用；
-    /// — 如果你使用压缩（如 gzip、snappy），压缩后数据仍需满足该限制。
-    #[serde(rename = "max.request.size")]
-    pub max_request_size: usize,
-
     /// ### request.timeout.ms
     ///
     /// > Producer 或 Consumer 向 Kafka 发送请求后等待响应的最长时间（单位：毫秒）。
@@ -338,14 +247,7 @@ pub struct ProducerConfigMediumLevel {
 
 impl Default for ProducerConfigMediumLevel {
     fn default() -> Self {
-        Self {
-            batch_size: 16384,
-            client_id: "".to_string(),
-            linger_ms: 0,
-            max_block_ms: 60000,
-            max_request_size: 1048576,
-            request_timeout_ms: 30000,
-        }
+        Self { batch_size: 16384, client_id: "".to_string(), linger_ms: 0, request_timeout_ms: 30000 }
     }
 }
 
