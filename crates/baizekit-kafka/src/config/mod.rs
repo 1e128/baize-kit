@@ -1,9 +1,6 @@
 use rdkafka::ClientConfig;
 use serde::Serialize;
 use serde_json::Value;
-use snafu::ResultExt;
-
-use crate::error::{JsonSnafu, Result};
 
 mod admin;
 mod consumer;
@@ -14,8 +11,8 @@ pub use consumer::*;
 pub use producer::*;
 
 pub trait ToRdkafkaClientConfig: Serialize {
-    fn to_client_config(&self) -> Result<ClientConfig> {
-        let value = serde_json::to_value(&self).context(JsonSnafu)?;
+    fn to_client_config(&self) -> serde_json::error::Result<ClientConfig> {
+        let value = serde_json::to_value(&self)?;
 
         let mut cfg = ClientConfig::new();
         let Value::Object(value) = value else {
