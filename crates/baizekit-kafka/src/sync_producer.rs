@@ -21,6 +21,16 @@ pub struct Message {
     payload: String,
 }
 
+impl Message {
+    pub fn new(topic: String, payload: String) -> Self {
+        Self { topic, key: None, payload }
+    }
+
+    pub fn new_with_key(topic: String, key: String, payload: String) -> Self {
+        Self { topic, key: Some(key), payload }
+    }
+}
+
 struct ProducerActor {
     receiver: Receiver<Command>,
     producer: BaseProducer,
@@ -80,8 +90,13 @@ impl SyncProducer {
     }
 
     #[inline(always)]
-    pub fn send(&self, topic: String, key: String, payload: String) -> Result<()> {
-        self.send_message(Message { topic, key: Some(key), payload })
+    pub fn send(&self, topic: String, payload: String) -> Result<()> {
+        self.send_message(Message::new(topic, payload))
+    }
+
+    #[inline(always)]
+    pub fn send_with_key(&self, topic: String, key: String, payload: String) -> Result<()> {
+        self.send_message(Message::new_with_key(topic, key, payload))
     }
 
     #[inline]
