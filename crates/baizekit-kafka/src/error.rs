@@ -17,20 +17,6 @@ pub enum Error {
         #[snafu(implicit)]
         location: Location,
     },
-
-    #[snafu(display("SendError: {message}"))]
-    SendError {
-        message: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
-
-    #[snafu(display("RecvError: {message}"))]
-    RecvError {
-        message: String,
-        #[snafu(implicit)]
-        location: Location,
-    },
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

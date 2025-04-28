@@ -6,7 +6,7 @@ use rdkafka::producer::{BaseProducer, BaseRecord, Producer};
 use snafu::ResultExt;
 
 use crate::config::{ProducerConfig, ToRdkafkaClientConfig};
-use crate::error::{KafkaSnafu, RecvSnafu, Result, SendSnafu};
+use crate::error::{KafkaSnafu, Result};
 
 const DEFAULT_FLUSH_TIMEOUT: Duration = Duration::from_millis(5000);
 
@@ -77,7 +77,7 @@ pub struct SyncProducer {
 
 impl SyncProducer {
     pub fn try_new(cfg: ProducerConfig) -> Result<Self> {
-        let (tx, receiver) = mpsc::channel();
+        let (sender, receiver) = mpsc::channel();
 
         let producer: BaseProducer = cfg.to_client_config()?.create().context(KafkaSnafu)?;
 
@@ -86,7 +86,7 @@ impl SyncProducer {
             producer.run();
         });
 
-        Ok(SyncProducer { sender: tx })
+        Ok(SyncProducer { sender })
     }
 
     #[inline(always)]
@@ -101,13 +101,13 @@ impl SyncProducer {
 
     #[inline]
     pub fn send_message(&self, message: Message) -> Result<()> {
-        let (resp_tx, resp_rx) = mpsc::channel();
+        let (respond_to, respond_out) = mpsc::channel();
 
         self.sender
-            .send(Command::SendWithFlush { message, respond_to: resp_tx, flush_timeout: None })
-            .map_err(|_| SendSnafu { message: "send message failed" }.build())?;
+            .send(Command::SendWithFlush { message, respond_to, flush_timeout: None })
+            .expect("send message to producer actor failed");
 
-        resp_rx.recv().map_err(|e| RecvSnafu { message: e.to_string() }.build())?
+        respond_out.recv().expect("receive respond_to msg failed")
     }
 
     #[inline(always)]
