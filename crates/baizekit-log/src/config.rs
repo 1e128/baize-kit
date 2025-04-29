@@ -4,9 +4,13 @@ use tracing::Level;
 
 use crate::format::LogFormat;
 
-fn default_log_level() -> Level { Level::INFO }
+fn default_log_level() -> Level {
+    Level::INFO
+}
 
-fn on() -> bool { true }
+fn on() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct LogConfig {
@@ -26,6 +30,18 @@ pub struct LogConfig {
     /// 是否显示 ANSI 颜色
     #[serde(default = "on")]
     pub ansi: bool,
+}
+
+impl Default for LogConfig {
+    fn default() -> Self {
+        LogConfig {
+            format: LogFormat::default(),
+            level: default_log_level(),
+            display_filename: true,
+            display_line_number: true,
+            ansi: true,
+        }
+    }
 }
 
 #[cfg(test)]
