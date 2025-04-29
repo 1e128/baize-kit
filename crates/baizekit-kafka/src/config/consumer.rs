@@ -520,33 +520,6 @@ pub struct ConsumerConfigLowLevel {
     /// - 在高可用性要求较高的场景下，可以调整该值来平衡恢复连接的速度和系统的稳定性。
     #[serde(rename = "reconnect.backoff.ms")]
     pub reconnect_backoff_ms: i32,
-
-    /// ### retry.backoff.ms
-    ///
-    /// > 消费者在重试请求失败时的等待时间（毫秒）。
-    ///
-    /// ---
-    ///
-    /// #### 工作原理
-    /// - 当消费者发送请求（例如：拉取消息）失败时，Kafka 会根据 `retry.backoff.ms` 设置的等待时间来延迟下一次重试；
-    /// - 该配置项控制消费者在失败后重新尝试的时间间隔；
-    /// - 重试次数和最大重试间隔由其他配置项控制，如 `retries` 和 `retry.backoff.max.ms`。
-    ///
-    /// ---
-    ///
-    /// #### 使用建议
-    /// - 默认值通常为 100 毫秒；
-    /// - 设置较小的值可以让消费者更快地重试，但可能导致请求压力增加；
-    /// - 设置较大的值可以减少请求压力，但可能会延迟消费者的响应时间。
-    ///
-    /// ---
-    ///
-    /// #### 注意事项
-    /// - 该配置项仅在请求失败时起作用，若请求成功则不使用该等待时间；
-    /// - 在高可用性和容错性要求较高的系统中，可以根据负载调节此参数；
-    /// - 配合 `retry.backoff.max.ms` 使用，后者定义了最大重试间隔。
-    #[serde(rename = "retry.backoff.ms")]
-    pub retry_backoff_ms: i32,
 }
 
 impl Default for ConsumerConfigLowLevel {
@@ -557,7 +530,6 @@ impl Default for ConsumerConfigLowLevel {
             client_id: "".to_string(),
             reconnect_backoff_max_ms: 1000,
             reconnect_backoff_ms: 50,
-            retry_backoff_ms: 100,
         }
     }
 }
