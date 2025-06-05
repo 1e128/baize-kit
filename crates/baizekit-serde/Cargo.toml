@@ -11,6 +11,7 @@ description = "Serde ToolKit"
 
 
 [dependencies]
+chrono = { version = "0.4.41", features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 rust_decimal = { workspace = true, features = ["serde"] }
 
