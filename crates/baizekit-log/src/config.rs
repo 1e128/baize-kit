@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
-use tracing::Level;
+pub use tracing::Level;
 
-use crate::format::LogFormat;
+pub use crate::format::LogFormat;
 
 fn default_log_level() -> Level {
     Level::INFO

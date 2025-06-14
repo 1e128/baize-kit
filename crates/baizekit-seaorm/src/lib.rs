@@ -4,9 +4,11 @@ use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::sync::OnceCell;
 
 mod cfg;
+mod cli;
 
 pub use cfg::Config;
 pub use sea_orm;
+pub use cli::*;
 
 static DB_CONNECTION: OnceCell<DatabaseConnection> = OnceCell::const_new();
 
