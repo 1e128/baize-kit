@@ -2,41 +2,29 @@ use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 pub use tracing::Level;
 
-pub use crate::format::LogFormat;
+pub use super::LogFormat;
 
-fn default_log_level() -> Level {
-    Level::INFO
-}
-
-fn on() -> bool {
-    true
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(default)]
 pub struct LogConfig {
     /// 日志格式
-    #[serde(default)]
     pub format: LogFormat,
-    /// 日志登记
-    #[serde(default = "default_log_level")]
+    /// 日志等级
     #[serde(with = "::serde_with::As::<DisplayFromStr>")]
     pub level: Level,
     /// 是否显示文件名
-    #[serde(default = "on")]
     pub display_filename: bool,
     /// 是否显示行号
-    #[serde(default = "on")]
     pub display_line_number: bool,
     /// 是否显示 ANSI 颜色
-    #[serde(default = "on")]
     pub ansi: bool,
 }
 
 impl Default for LogConfig {
     fn default() -> Self {
         LogConfig {
-            format: LogFormat::default(),
-            level: default_log_level(),
+            format: LogFormat::Compact,
+            level: Level::INFO,
             display_filename: true,
             display_line_number: true,
             ansi: true,
@@ -50,17 +38,6 @@ mod tests {
 
     use super::*;
 
-    // 辅助函数：创建默认配置
-    fn default_config() -> LogConfig {
-        LogConfig {
-            format: LogFormat::default(),
-            level: default_log_level(),
-            display_filename: true,
-            display_line_number: true,
-            ansi: true,
-        }
-    }
-
     #[test]
     fn test_deserialize_with_defaults() {
         // TC-001: 空输入应使用全部默认值
@@ -68,7 +45,7 @@ mod tests {
         let config: LogConfig = serde_json::from_value(json).unwrap();
 
         assert_eq!(config.format, LogFormat::default());
-        assert_eq!(config.level, default_log_level());
+        assert_eq!(config.level, Level::INFO);
         assert!(config.display_filename);
         assert!(config.display_line_number);
         assert!(config.ansi);
@@ -103,7 +80,7 @@ mod tests {
         });
 
         let config: LogConfig = serde_json::from_value(json).unwrap();
-        let default = default_config();
+        let default = LogConfig::default();
 
         assert_eq!(config.level, Level::WARN);
         assert!(!config.ansi);
@@ -126,7 +103,7 @@ mod tests {
     #[test]
     fn test_clone_and_debug() {
         // 验证Clone和Debug trait
-        let config = default_config();
+        let config = LogConfig::default();
         let cloned = config.clone();
 
         assert_eq!(config, cloned);
