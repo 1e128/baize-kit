@@ -1,16 +1,15 @@
+use std::path::{Path, PathBuf};
 use std::{env, fs};
+
 use clap::Parser;
 use dotenvy::dotenv;
 use sea_orm::{ConnectOptions, Database};
 use sea_orm_cli::{handle_error, run_generate_command, Commands, GenerateSubcommands};
 use sea_orm_migration::MigratorTrait;
 
-use std::path::{Path, PathBuf};
-
 pub fn get_cargo_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     // 获取 CARGO_MANIFEST_DIR 环境变量
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR")
-        .map_err(|_| "未设置 CARGO_MANIFEST_DIR 环境变量")?;
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").map_err(|_| "未设置 CARGO_MANIFEST_DIR 环境变量")?;
 
     let mut current_dir = PathBuf::from(&manifest_dir);
 
@@ -46,25 +45,17 @@ pub fn get_cargo_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     Ok(PathBuf::from(manifest_dir))
 }
 
-pub async fn generate_entities(args: &str, migration_tables: Vec<String>, entities_out_path: &Path){
+pub async fn generate_entities(args: &str, migration_tables: Vec<String>, entities_out_path: &Path) {
     dotenv().ok();
-    let patch_args = ["cli", "generate","entity"];
+    let patch_args = ["cli", "generate", "entity"];
 
-    let args_str: Vec<&str> = patch_args
-        .into_iter()
-        .chain(args.split_whitespace())
-        .to_owned()
-        .collect();
+    let args_str: Vec<&str> = patch_args.into_iter().chain(args.split_whitespace()).to_owned().collect();
     println!("cli Args: {:?}", args_str);
     let cli = sea_orm_cli::Cli::parse_from(args_str);
     match cli.command {
         Commands::Generate { mut command } => {
             #[allow(irrefutable_let_patterns)]
-            if let GenerateSubcommands::Entity {
-                ref mut tables,
-                ref mut output_dir,
-                ..
-            } = command {
+            if let GenerateSubcommands::Entity { ref mut tables, ref mut output_dir, .. } = command {
                 *tables = migration_tables;
                 *output_dir = entities_out_path.to_str().unwrap_or("").to_owned();
             }
@@ -74,16 +65,13 @@ pub async fn generate_entities(args: &str, migration_tables: Vec<String>, entiti
     }
 }
 pub async fn db_migration<M>(migrator: M, args: &str)
-where M: MigratorTrait,
+where
+    M: MigratorTrait,
 {
     dotenv().ok();
     let patch_args = ["cli", "migrate"];
 
-    let args_str: Vec<&str> = patch_args
-        .into_iter()
-        .chain(args.split_whitespace())
-        .to_owned()
-        .collect();
+    let args_str: Vec<&str> = patch_args.into_iter().chain(args.split_whitespace()).to_owned().collect();
     println!("Args as &str: {:?}", args_str);
     // let cli = sea_orm_migration::cli::Cli::parse_from(args_str);
 
@@ -92,9 +80,7 @@ where M: MigratorTrait,
     };
     let schema = env::var("DATABASE_SCHEMA").unwrap_or("public".to_owned());
 
-    let connect_options = ConnectOptions::new(url)
-        .set_schema_search_path(schema)
-        .to_owned();
+    let connect_options = ConnectOptions::new(url).set_schema_search_path(schema).to_owned();
 
     let db = Database::connect(connect_options)
         .await
@@ -103,7 +89,8 @@ where M: MigratorTrait,
     let cli = sea_orm_cli::Cli::parse_from(args_str);
     match cli.command {
         Commands::Migrate { command, .. } => {
-            sea_orm_migration::cli::run_migrate(migrator, &db, command, cli.verbose).await
+            sea_orm_migration::cli::run_migrate(migrator, &db, command, cli.verbose)
+                .await
                 .unwrap_or_else(handle_error);
         }
         _ => {}
@@ -124,11 +111,7 @@ macro_rules! define_sea_orm_cli {
         /// - `args`: 生成实体时的额外参数
         /// - `migration_tables`: 需要生成实体的表名列表
         /// - `entities_relative_path`: 实体文件相对于项目根目录的路径
-        pub async fn run_generate_entities(
-            args: &str,
-            migration_tables: Vec<String>,
-            entities_relative_path: &str,
-        ) {
+        pub async fn run_generate_entities(args: &str, migration_tables: Vec<String>, entities_relative_path: &str) {
             let Ok(mut out_path) = baizekit_seaorm::get_cargo_project_root() else {
                 eprintln!("Failed to get cargo project root");
                 return;

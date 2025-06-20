@@ -1,14 +1,13 @@
 use std::time::Duration;
 
+pub use cfg::Config;
+pub use cli::*;
+pub use sea_orm;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tokio::sync::OnceCell;
 
 mod cfg;
 mod cli;
-
-pub use cfg::Config;
-pub use sea_orm;
-pub use cli::*;
 
 static DB_CONNECTION: OnceCell<DatabaseConnection> = OnceCell::const_new();
 
@@ -16,13 +15,18 @@ pub async fn get_or_init_database_connection(cfg: Config) -> Result<&'static Dat
     DB_CONNECTION
         .get_or_try_init(|| async {
             let mut opt = ConnectOptions::new(cfg.database_url)
-                .max_connections(100)
-                .min_connections(5)
-                .connect_timeout(Duration::from_secs(5))
-                .acquire_timeout(Duration::from_secs(5))
-                .idle_timeout(Duration::from_secs(100))
-                .max_lifetime(Duration::from_secs(100))
+                .max_connections(cfg.max_connections)
+                .min_connections(cfg.min_connections)
+                .connect_timeout(Duration::from_secs(cfg.connect_timeout_seconds))
+                .acquire_timeout(Duration::from_secs(cfg.acquire_timeout_seconds))
+                .idle_timeout(Duration::from_secs(cfg.idle_timeout_seconds))
+                .max_lifetime(Duration::from_secs(cfg.max_lifetime_seconds))
                 .sqlx_logging(cfg.sqlx_logging)
+                .sqlx_logging_level(cfg.sqlx_log_level)
+                .sqlx_slow_statements_logging_settings(
+                    cfg.slow_statements_log_level,
+                    Duration::from_millis(cfg.slow_statements_threshold_millis),
+                )
                 .to_owned();
 
             if let Some(schema) = cfg.database_schema {
@@ -34,11 +38,10 @@ pub async fn get_or_init_database_connection(cfg: Config) -> Result<&'static Dat
         .await
 }
 
-pub async fn try_get_database_connection() -> Result<&'static DatabaseConnection, String> {
-    get_or_init_database_connection(Config::try_new_from_env()?).await
+#[inline(always)]
+pub fn get_database_connection() -> Option<&'static DatabaseConnection> {
+    DB_CONNECTION.get()
 }
-
-pub fn get_database_connection() -> Option<&'static DatabaseConnection> { DB_CONNECTION.get() }
 
 #[inline(always)]
 pub fn must_get_database_connection() -> &'static DatabaseConnection {
