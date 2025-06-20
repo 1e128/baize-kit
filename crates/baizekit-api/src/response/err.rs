@@ -44,11 +44,28 @@ pub struct ApiError<T>(pub T)
 where
     T: ErrorCode + Error;
 
+impl<T> From<ApiError<T>> for Reply
+where
+    T: ErrorCode + Error,
+{
+    fn from(ApiError(err): ApiError<T>) -> Self {
+        let code = err.code();
+        let message = match code {
+            500 => format!("InternalServerError: {}", err),
+            _ => err.to_string(),
+        };
+
+        Self { code, message, data: None }
+    }
+}
+
 impl<T> From<T> for ApiError<T>
 where
     T: ErrorCode + Error,
 {
-    fn from(value: T) -> Self { Self(value) }
+    fn from(err: T) -> Self {
+        Self(err)
+    }
 }
 
 impl<T> IntoResponse for ApiError<T>
@@ -69,14 +86,8 @@ where
     ///
     /// 错误会被记录到日志中，使用 `tracing::error!` 宏
     fn into_response(self) -> Response {
-        let code = self.0.code();
-        let message = match code {
-            500 => format!("Internal Server Error: {}", self.0),
-            _ => self.0.to_string(),
-        };
-
-        let resp: Reply<Option<()>> = Reply { code, message: message.clone(), data: None };
-        tracing::error!("Error: {:?}", self.0);
-        Json(resp).into_response()
+        let reply = Reply::<()>::from(self);
+        tracing::error!("ErrorResponse: {:?}", reply);
+        Json(reply).into_response()
     }
 }
