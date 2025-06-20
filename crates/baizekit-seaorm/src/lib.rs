@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-pub use cfg::Config;
+pub use cfg::*;
 pub use cli::*;
 pub use sea_orm;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};

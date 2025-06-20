@@ -1,3 +1,4 @@
+pub use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -12,7 +13,7 @@ pub struct Config {
     /// 是否开启sqlx的日志
     pub sqlx_logging: bool,
     /// sqlx日志级别
-    pub sqlx_log_level: log::LevelFilter,
+    pub sqlx_log_level: LevelFilter,
     /// 数据库连接池最大连接数
     pub max_connections: u32,
     /// 数据库连接池最小连接数
@@ -26,7 +27,7 @@ pub struct Config {
     /// 数据库连接池最大生命周期
     pub max_lifetime_seconds: u64,
     /// 慢查询日志级别
-    pub slow_statements_log_level: log::LevelFilter,
+    pub slow_statements_log_level: LevelFilter,
     /// 慢查询阈值
     pub slow_statements_threshold_millis: u64,
 }
@@ -36,15 +37,15 @@ impl Default for Config {
         Self {
             database_url: Default::default(),
             database_schema: None,
-            max_connections: 10,
-            min_connections: 5,
+            max_connections: 5,
+            min_connections: 1,
             connect_timeout_seconds: 30,
             acquire_timeout_seconds: 30,
             idle_timeout_seconds: 60,
             max_lifetime_seconds: 180,
             sqlx_logging: false,
-            sqlx_log_level: log::LevelFilter::Info,
-            slow_statements_log_level: log::LevelFilter::Info,
+            sqlx_log_level: LevelFilter::Info,
+            slow_statements_log_level: LevelFilter::Info,
             slow_statements_threshold_millis: 1000,
         }
     }
