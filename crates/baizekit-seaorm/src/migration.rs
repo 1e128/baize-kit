@@ -102,7 +102,7 @@ macro_rules! define_sea_orm_cli {
     ($migrator_type:ty, $migrator_instance:expr) => {
         /// 运行数据库迁移
         pub async fn run_db_migrations(args: &str) {
-            baizekit_seaorm::db_migration::<$migrator_type>($migrator_instance, args).await;
+            db_migration::<$migrator_type>($migrator_instance, args).await;
         }
 
         /// 生成实体文件
@@ -112,7 +112,7 @@ macro_rules! define_sea_orm_cli {
         /// - `migration_tables`: 需要生成实体的表名列表
         /// - `entities_relative_path`: 实体文件相对于项目根目录的路径
         pub async fn run_generate_entities(args: &str, migration_tables: Vec<String>, entities_relative_path: &str) {
-            let Ok(mut out_path) = baizekit_seaorm::get_cargo_project_root() else {
+            let Ok(mut out_path) = get_cargo_project_root() else {
                 eprintln!("Failed to get cargo project root");
                 return;
             };
@@ -126,7 +126,7 @@ macro_rules! define_sea_orm_cli {
                 eprintln!("Entities path does not exist: {:?}", out_path);
                 return;
             }
-            baizekit_seaorm::generate_entities(args, migration_tables, out_path.as_path()).await;
+            generate_entities(args, migration_tables, out_path.as_path()).await;
         }
     };
 }
