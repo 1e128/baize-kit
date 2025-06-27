@@ -11,7 +11,7 @@ description = "API ToolKit"
 
 [dependencies]
 axum = "0.8.4"
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = { version = "1.0.140" }
 tracing = "0.1.41"
 utoipa = "5.4.0"
