@@ -6,8 +6,8 @@ use sea_orm::{
     Select, SelectModel, StreamTrait, TransactionTrait,
 };
 
-pub struct Repository<'a, DB, DBEntity, Entity, Error> {
-    db: &'a DB,
+pub struct Repository<'db, DB, DBEntity, Entity, Error> {
+    db: &'db DB,
     phantom_data: PhantomData<(DBEntity, Entity, Error)>,
 }
 
@@ -38,6 +38,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub enum Paginate {
     Offset((u64, u64)),
     Cursor(u64),
