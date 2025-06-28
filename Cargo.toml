@@ -1,5 +1,4 @@
 [workspace]
-# 工作空间成员
 members = [
     "crates/baizekit-*",
 ]
@@ -7,14 +6,12 @@ resolver = "3"
 
 
 [workspace.package]
-version = "0.1.16"
+version = "0.1.17"
 edition = "2024"
-rust-version = "1.85.0"
+rust-version = "1.88.0"
 homepage = "https://github.com/1e128/baize-kit"
 repository = "https://github.com/1e128/baize-kit.git"
 license = "MIT"
 readme = "README.md"
-# 添加关键词，便于在 crates.io 上搜索
-keywords = ["api", "seaorm", "serde", "toolkit"]
-# 添加分类
+keywords = ["api", "log", "seaorm", "serde", "toolkit"]
 categories = ["database", "web-programming"]

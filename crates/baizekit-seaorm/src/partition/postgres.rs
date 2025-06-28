@@ -2,7 +2,9 @@ use sea_orm::prelude::async_trait::async_trait;
 use sqlx::PgPool;
 
 use super::{PartitionAdapter, PartitionOptions, PartitionStrategy};
+use crate::connection::{try_new_pg_pool, Config};
 
+#[derive(Clone)]
 pub struct PostgresPartitionAdapter {
     pub pool: PgPool,
 }
@@ -10,6 +12,11 @@ pub struct PostgresPartitionAdapter {
 impl PostgresPartitionAdapter {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
+    }
+
+    pub async fn try_new_from_config(cfg: Config) -> Result<Self, sqlx::Error> {
+        let pool = try_new_pg_pool(cfg).await?;
+        Ok(Self::new(pool))
     }
 }
 

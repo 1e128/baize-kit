@@ -7,3 +7,5 @@ pub mod migration;
 
 #[cfg(feature = "partition")]
 pub mod partition;
+
+pub mod repository;
