@@ -19,11 +19,10 @@ where
 
     async fn find<Param>(&self, param: Param) -> Result<Option<Self::Data>, Self::Error>
     where
-        Param: Send,
-        Self::Filter: From<Param>,
+        Param: Into<Self::Filter> + Send,
         Select<Entity>: From<Self::Filter>,
     {
-        let filter: Self::Filter = Self::Filter::from(param);
+        let filter = param.into();
         let select = Select::<Entity>::from(filter);
         select
             .one(self.db())

@@ -18,16 +18,16 @@ pub struct Repository<'db, DB, Entity, FindFilter, SearchFilter, Item, Error> {
 }
 
 /// new
-impl<'db, DB, Entity, Item, FindFilter, SearchFilter, Error>
-    Repository<'db, DB, Entity, Item, FindFilter, SearchFilter, Error>
+impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error>
+    Repository<'db, DB, Entity, Data, FindFilter, SearchFilter, Error>
 {
     pub fn new(db: &'db DB) -> Self {
         Self { db, phantom_data: Default::default() }
     }
 }
 
-impl<'db, DB, Entity, Item, FindFilter, SearchFilter, Error> RepositoryTrait<DB>
-    for Repository<'db, DB, Entity, Item, FindFilter, SearchFilter, Error>
+impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> RepositoryTrait<DB>
+    for Repository<'db, DB, Entity, Data, FindFilter, SearchFilter, Error>
 {
     fn db(&self) -> &DB {
         self.db

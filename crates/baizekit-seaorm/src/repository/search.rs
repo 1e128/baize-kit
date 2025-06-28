@@ -6,10 +6,20 @@ use sea_orm::{
 
 use super::RepositoryTrait;
 
-#[derive(Clone)]
+#[derive(derive_more::From, Clone)]
 pub enum Paginate {
     Offset((u64, u64)),
     Cursor(u64),
+}
+
+impl Paginate {
+    pub fn offset(offset: u64, limit: u64) -> Self {
+        Self::Offset((offset, limit))
+    }
+
+    pub fn cursor(cursor: u64) -> Self {
+        Self::Cursor(cursor)
+    }
 }
 
 pub trait PaginateFilterTrait {
