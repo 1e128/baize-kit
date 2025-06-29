@@ -12,9 +12,9 @@ pub trait RepositoryTrait<'db, DB> {
     fn db(&self) -> &'db DB;
 }
 
-pub struct Repository<'db, DB, Entity, FindFilter, SearchFilter, Item, Error> {
+pub struct Repository<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> {
     db: &'db DB,
-    phantom_data: std::marker::PhantomData<(Entity, Item, FindFilter, SearchFilter, Error)>,
+    phantom_data: std::marker::PhantomData<(Entity, Data, FindFilter, SearchFilter, Error)>,
 }
 
 /// new
