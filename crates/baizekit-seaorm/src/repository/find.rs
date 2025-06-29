@@ -5,9 +5,9 @@ use super::RepositoryTrait;
 
 /// find
 #[async_trait]
-pub trait FindTrait<DB, Entity>: RepositoryTrait<DB>
+pub trait FindTrait<'db, DB, Entity>: RepositoryTrait<'db, DB>
 where
-    DB: ConnectionTrait,
+    DB: ConnectionTrait + 'db,
     Entity: EntityTrait,
 {
     /// 查询结果

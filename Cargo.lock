@@ -454,6 +454,7 @@ dependencies = [
 name = "baizekit-seaorm"
 version = "0.1.17"
 dependencies = [
+ "async-stream",
  "clap",
  "derive_more",
  "dotenvy",

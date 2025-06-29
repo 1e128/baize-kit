@@ -8,8 +8,8 @@ mod find;
 mod search;
 mod upsert;
 
-pub trait RepositoryTrait<DB> {
-    fn db(&self) -> &DB;
+pub trait RepositoryTrait<'db, DB> {
+    fn db(&self) -> &'db DB;
 }
 
 pub struct Repository<'db, DB, Entity, FindFilter, SearchFilter, Item, Error> {
@@ -26,15 +26,15 @@ impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error>
     }
 }
 
-impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> RepositoryTrait<DB>
+impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> RepositoryTrait<'db, DB>
     for Repository<'db, DB, Entity, Data, FindFilter, SearchFilter, Error>
 {
-    fn db(&self) -> &DB {
+    fn db(&self) -> &'db DB {
         self.db
     }
 }
 
-impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> FindTrait<DB, Entity>
+impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> FindTrait<'db, DB, Entity>
     for Repository<'db, DB, Entity, Data, FindFilter, SearchFilter, Error>
 where
     DB: ConnectionTrait,
@@ -62,12 +62,11 @@ where
     type Filter = SearchFilter;
 }
 
-impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> SearchStreamTrait<'db, DB, Entity>
-    for Repository<'db, DB, Entity, Data, FindFilter, SearchFilter, Error>
+impl<DB, Entity, Data, FindFilter, SearchFilter, Error> SearchStreamTrait<DB, Entity>
+    for Repository<'static, DB, Entity, Data, FindFilter, SearchFilter, Error>
 where
-    DB: ConnectionTrait + StreamTrait + Send + 'db,
+    DB: ConnectionTrait + StreamTrait + Send + 'static,
     Entity: EntityTrait,
-    Entity::Model: Send + Sync,
     Data: From<Entity::Model> + 'static,
     Error: From<DbErr> + 'static,
 {
@@ -76,7 +75,7 @@ where
     type Filter = SearchFilter;
 }
 
-impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> UpsertTrait<DB, Entity>
+impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> UpsertTrait<'db, DB, Entity>
     for Repository<'db, DB, Entity, Data, FindFilter, SearchFilter, Error>
 where
     DB: ConnectionTrait,
@@ -90,7 +89,7 @@ where
     type Error = Error;
 }
 
-impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> BulkUpsertTrait<DB, Entity>
+impl<'db, DB, Entity, Data, FindFilter, SearchFilter, Error> BulkUpsertTrait<'db, DB, Entity>
     for Repository<'db, DB, Entity, Data, FindFilter, SearchFilter, Error>
 where
     DB: ConnectionTrait + TransactionTrait + Send,

@@ -5,9 +5,9 @@ use sea_orm::{ConnectionTrait, DbErr, EntityTrait, IntoActiveModel, Iterable, Tr
 use crate::repository::RepositoryTrait;
 
 #[async_trait]
-pub trait UpsertTrait<DB, Entity>: RepositoryTrait<DB>
+pub trait UpsertTrait<'db, DB, Entity>: RepositoryTrait<'db, DB>
 where
-    DB: ConnectionTrait,
+    DB: ConnectionTrait + 'db,
     Entity: EntityTrait,
     Entity::Model: IntoActiveModel<Entity::ActiveModel>,
     Entity::ActiveModel: Send,
@@ -44,10 +44,18 @@ where
     }
 }
 
+fn calc_chunk_size<Entity: EntityTrait>() -> usize {
+    // https://github.com/launchbadge/sqlx/issues/3464
+    // https://www.postgresql.org/docs/current/limits.html
+    let chunk_size = (u16::MAX / Entity::Column::iter().len() as u16) as usize;
+    assert!(chunk_size > 0, "chunk_size must be greater than 0");
+    chunk_size
+}
+
 #[async_trait]
-pub trait BulkUpsertTrait<DB, Entity>: RepositoryTrait<DB>
+pub trait BulkUpsertTrait<'db, DB, Entity>: RepositoryTrait<'db, DB>
 where
-    DB: ConnectionTrait + TransactionTrait + Send,
+    DB: ConnectionTrait + TransactionTrait + Send + 'db,
     Entity: EntityTrait,
     Entity::Model: IntoActiveModel<Entity::ActiveModel>,
     Entity::ActiveModel: Send,
@@ -57,10 +65,7 @@ where
 
     /// 插入数据, 失败或者冲突时返回错误
     async fn bulk_insert(&self, entities: Vec<Self::Data>) -> Result<(), Self::Error> {
-        // https://github.com/launchbadge/sqlx/issues/3464
-        // https://www.postgresql.org/docs/current/limits.html
-        let chunk_size = (u16::MAX / Entity::Column::iter().len() as u16) as usize;
-        assert!(chunk_size > 0, "chunk_size must be greater than 0");
+        let chunk_size = calc_chunk_size::<Entity>();
 
         let models = entities.into_iter().map(Into::into).collect::<Vec<_>>();
         let mut models_iter = models.into_iter();
@@ -81,10 +86,7 @@ where
 
     /// 批量插入数据
     async fn bulk_insert_with_returning(&self, entities: Vec<Self::Data>) -> Result<Vec<Self::Data>, Self::Error> {
-        // https://github.com/launchbadge/sqlx/issues/3464
-        // https://www.postgresql.org/docs/current/limits.html
-        let chunk_size = (u16::MAX / Entity::Column::iter().len() as u16) as usize;
-        assert!(chunk_size > 0, "chunk_size must be greater than 0");
+        let chunk_size = calc_chunk_size::<Entity>();
 
         let models = entities.into_iter().map(Into::into).collect::<Vec<_>>();
         let mut inserted = Vec::with_capacity(models.len());
@@ -114,10 +116,7 @@ where
 
     /// 保存数据, 找不到数据时插入数据, 找到数据时更新数据
     async fn bulk_save(&self, entities: Vec<Self::Data>, on_conflict: OnConflict) -> Result<(), Self::Error> {
-        // https://github.com/launchbadge/sqlx/issues/3464
-        // https://www.postgresql.org/docs/current/limits.html
-        let chunk_size = (u16::MAX / Entity::Column::iter().len() as u16) as usize;
-        assert!(chunk_size > 0, "chunk_size must be greater than 0");
+        let chunk_size = calc_chunk_size::<Entity>();
 
         let models = entities.into_iter().map(Into::into).collect::<Vec<_>>();
         let mut models_iter = models.into_iter();
@@ -142,10 +141,7 @@ where
         entities: Vec<Self::Data>,
         on_conflict: OnConflict,
     ) -> Result<Vec<Self::Data>, Self::Error> {
-        // https://github.com/launchbadge/sqlx/issues/3464
-        // https://www.postgresql.org/docs/current/limits.html
-        let chunk_size = (u16::MAX / Entity::Column::iter().len() as u16) as usize;
-        assert!(chunk_size > 0, "chunk_size must be greater than 0");
+        let chunk_size = calc_chunk_size::<Entity>();
 
         let models = entities.into_iter().map(Into::into).collect::<Vec<_>>();
         let mut inserted = Vec::with_capacity(models.len());
