@@ -1,5 +1,5 @@
 use sea_orm::prelude::async_trait::async_trait;
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 
 use super::{PartitionAdapter, PartitionOptions, PartitionStrategy};
 use crate::connection::{try_new_pg_pool, Config};
@@ -23,7 +23,7 @@ impl PostgresPartitionAdapter {
 #[async_trait]
 impl PartitionAdapter for PostgresPartitionAdapter {
     async fn query(&self, table_name: String) -> Result<Vec<String>, sqlx::Error> {
-        let rows = sqlx::query!(
+        let rows = sqlx::query(
             r#"
             SELECT child.relname AS partition_name
             FROM pg_inherits
@@ -32,12 +32,16 @@ impl PartitionAdapter for PostgresPartitionAdapter {
             WHERE parent.relname = $1
             ORDER BY child.relname;
             "#,
-            table_name
         )
+        .bind(table_name)
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(|row| row.partition_name).collect())
+        let partitions = rows
+            .into_iter()
+            .filter_map(|row| row.try_get::<String, _>("partition_name").ok())
+            .collect();
+        Ok(partitions)
     }
 
     async fn create(&self, partition: PartitionOptions) -> Result<(), sqlx::Error> {
