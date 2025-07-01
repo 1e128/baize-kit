@@ -419,6 +419,7 @@ dependencies = [
 name = "baizekit-derive"
 version = "0.1.18"
 dependencies = [
+ "baizekit-seaorm",
  "darling",
  "proc-macro2",
  "quote",
@@ -465,16 +466,20 @@ name = "baizekit-seaorm"
 version = "0.1.18"
 dependencies = [
  "async-stream",
+ "async-trait",
  "clap",
+ "darling",
  "derive_more",
  "dotenvy",
  "futures-util",
  "log",
+ "proc-macro2",
  "sea-orm",
  "sea-orm-cli",
  "sea-orm-migration",
  "serde",
  "sqlx",
+ "syn 2.0.104",
  "tokio",
 ]
 
