@@ -1,10 +1,11 @@
 use darling::{FromDeriveInput, FromMeta};
-use syn::{parse_quote, Ident, Path};
+use syn::{Ident, Path};
 
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(curd))]
 pub struct CurdMacroOptions {
     pub ident: Ident,
+
     /// 实体类型
     pub entity: Path,
 
@@ -18,13 +19,13 @@ pub struct CurdMacroOptions {
     #[darling(default)]
     pub find: Option<FindOptions>,
 
-    /// 流式搜索配置
-    #[darling(default)]
-    pub stream_search: Option<SearchOptions>,
-
     /// 搜索配置
     #[darling(default)]
     pub search: Option<SearchOptions>,
+
+    /// 流式搜索配置
+    #[darling(default)]
+    pub stream_search: Option<SearchOptions>,
 
     /// 是否启用插入操作
     #[darling(default)]
@@ -67,31 +68,36 @@ pub struct SearchOptions {
 
 #[cfg(test)]
 mod tests {
-    use crate::curd::derive_curd_impl;
+    use syn::parse_quote;
+
     use super::*;
+
     #[test]
-    fn test() {
+    fn test_parse_quote() {
         println!("label: before parse1");
+
         let input = parse_quote! {
-    #[derive(Curd)]
-    #[curd(
-        entity = Entity,
-        model = SyncJournal,
-        error = DbErr,
-        find(filter = SearchFilter, select_fn = trans_fun),
-        // stream_search(filter = SearchFilter, transform = trans_fun),
-        search(filter = SearchFilter, select_fn = trans_fun),
-        insert,
-        update,
-        save,
-        bulk_insert,
-    )]
-    struct MyStruct;
-    };
+            #[derive(Curd)]
+            #[curd(
+                entity = Entity,
+                model = SyncJournal,
+                error = DbErr,
+                find(filter = SearchFilter, select_fn = trans_fun),
+                // stream_search(filter = SearchFilter, transform = trans_fun),
+                search(filter = SearchFilter, select_fn = trans_fun),
+                insert,
+                // update,
+                // save,
+                // bulk_insert,
+            )]
+            struct MyStruct;
+        };
 
         println!("label: before parse2");
-        let opts = CurdMacroOptions::from_derive_input(&input).expect("Failed to parse derive \
-        input");
+        let opts = CurdMacroOptions::from_derive_input(&input).expect(
+            "Failed to parse derive \
+        input",
+        );
         println!("{:#?}", opts);
         // let x = derive_curd_impl(opts);
         // println!("{:#?}", x);
