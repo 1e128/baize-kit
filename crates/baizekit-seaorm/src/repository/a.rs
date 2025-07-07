@@ -9,8 +9,6 @@ use sea_orm::{
 use std::any::Any;
 use std::sync::Arc;
 
-
-
 pub struct ARepository {
     db: Arc<DatabaseConnection>,
 }
@@ -19,31 +17,6 @@ impl ARepository {
     /// 创建新Repository
     pub fn new(db: Arc<DatabaseConnection>) -> Self {
         Self { db }
-    }
-
-    /// 查找单个实体
-    async fn find<E, D, Er, F>(&self, param: impl Into<F>, tx: Option<&mut dyn Transaction>) -> Result<Option<D>, Er>
-    where
-        E: EntityTrait,
-        D: From<E::Model>,
-        Er: From<DbErr>,
-        Select<E>: From<F>,
-    {
-        let filter = param.into();
-        let select = Select::<E>::from(filter);
-
-        match tx {
-            Some(tx) => {
-                let tx = tx
-                    .as_any()
-                    .downcast_mut::<SeaOrmTransaction>()
-                    .ok_or_else(|| DbErr::Custom("Invalid transaction type".to_string()))?;
-                select.one(tx.inner()).await
-            }
-            None => select.one(&*self.db).await,
-        }
-        .map(|v| v.map(D::from))
-        .map_err(Er::from)
     }
 
     ///流式查询
@@ -59,46 +32,6 @@ impl ARepository {
         let select = Select::<E>::from(filter);
         let stream = select.stream(&*self.db).await?.map_ok(D::from).map_err(Er::from).boxed();
         Ok(stream)
-    }
-
-    /// 分页查询
-    async fn search<'db, E, D, Er, F>(&'db self, param: impl Into<F>) -> Result<(Vec<D>, u64, bool), Er>
-    where
-        E: EntityTrait,
-        D: From<E::Model>,
-        Er: From<DbErr>,
-        F: PaginatedFilter,
-        Select<E>: From<F>,
-        Select<E>: PaginatorTrait<'db, DatabaseConnection, Selector = SelectModel<E::Model>>,
-    {
-        let filter = param.into();
-        let paginate = filter.pagination();
-        let select = Select::<E>::from(filter);
-
-        let (models, num_items, has_more) = match paginate {
-            None => {
-                let stream = select.stream(&*self.db).await?;
-                let models: Vec<E::Model> = stream.try_collect().await?;
-                let num_items = models.len() as u64;
-                (models, num_items, false)
-            }
-            Some(Pagination::Offset(page, size)) => {
-                let paginator = select.paginate(&*self.db, size);
-                let models = paginator.fetch_page(page - 1).await?;
-                let ItemsAndPagesNumber { number_of_items, number_of_pages } = paginator.num_items_and_pages().await?;
-                let has_more = number_of_pages > paginator.cur_page();
-                (models, number_of_items, has_more)
-            }
-            Some(Pagination::Cursor(size)) => {
-                let paginator = select.paginate(&*self.db, size);
-                let models = paginator.fetch_page(0).await?;
-                let ItemsAndPagesNumber { number_of_items, number_of_pages } = paginator.num_items_and_pages().await?;
-                let has_more = number_of_pages > paginator.cur_page();
-                (models, number_of_items, has_more)
-            }
-        };
-
-        Ok((models.into_iter().map(D::from).collect(), num_items, has_more))
     }
 
     /// 插入数据, 失败或者冲突时返回错误

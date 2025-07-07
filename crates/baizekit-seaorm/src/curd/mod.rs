@@ -4,13 +4,15 @@ mod derive_impl;
 pub mod derive_options;
 
 use async_trait::async_trait;
-use sea_orm::{DatabaseConnection, DatabaseTransaction, DbErr, TransactionTrait};
-use std::any::Any;
-use std::sync::Arc;
 #[cfg(feature = "derive")]
 pub use derive_impl::*;
 #[cfg(feature = "derive")]
 pub use derive_options::*;
+use sea_orm::{DatabaseConnection, DatabaseTransaction, DbErr, TransactionTrait};
+use std::any::Any;
+use std::sync::Arc;
+pub use futures_util::stream::BoxStream;
+pub use futures_util::{StreamExt, TryStreamExt};
 
 pub trait Transaction: Send + Sync {
     fn as_any(&mut self) -> &mut dyn Any;
@@ -81,6 +83,41 @@ pub trait PaginatedFilter {
 }
 
 #[async_trait]
-pub trait FindTrait<D, E, Filter>: Send {
-    async fn find(&self, param: Filter, tx: Option<&mut dyn Transaction>) -> Result<Option<D>, E>;
+pub trait FindTrait<D, Er, F>: Send {
+    async fn find(&self, filter: F, tx: Option<&mut dyn Transaction>) -> Result<Option<D>, Er>;
 }
+
+#[async_trait]
+pub trait SearchTrait<D, Er, F>: Send {
+    async fn search(&self, filter: F) -> Result<(Vec<D>, u64, bool), Er>;
+}
+
+#[async_trait]
+pub trait InsertTrait<D, Er>: Send {
+    async fn insert(&self, data: D, tx: Option<&mut dyn Transaction>) -> Result<D, Er>;
+}
+
+
+///// 插入数据, 失败或者冲突时返回错误
+//     async fn insert<E, D, Er>(&self, data: D, tx: Option<&mut dyn Transaction>) -> Result<D, Er>
+//     where
+//         E: EntityTrait,
+//         D: From<E::Model>,
+//         Er: From<DbErr>,
+//         D: Into<E::ActiveModel> + From<E::Model> + 'static,
+//         E::Model: IntoActiveModel<E::ActiveModel>,
+//     {
+//         let insert = E::insert(data.into());
+//         match tx {
+//             Some(tx) => {
+//                 let tx = tx
+//                     .as_any()
+//                     .downcast_mut::<SeaOrmTransaction>()
+//                     .ok_or_else(|| DbErr::Custom("Invalid transaction type".to_string()))?;
+//                 insert.exec_with_returning(tx.inner()).await
+//             }
+//             None => insert.exec_with_returning(&*self.db).await,
+//         }
+//         .map(D::from)
+//         .map_err(Er::from)
+//     }
