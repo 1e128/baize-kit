@@ -1,13 +1,11 @@
-use darling::{FromDeriveInput};
-use derive_with::derive_with_impl;
+use baizekit_seaorm::curd::derive::{derive_curd_impl, CurdMacroOptions};
+use darling::FromDeriveInput;
 use proc_macro::TokenStream;
-use syn::{DeriveInput, parse_macro_input};
+use syn::{parse_macro_input, DeriveInput};
 
-use crate::derive_with::Input;
+use crate::derive_with::{derive_with_impl, Input};
 
 mod derive_with;
-use baizekit_seaorm::curd::CurdMacroOptions;
-use baizekit_seaorm::curd::derive_curd_impl;
 
 #[proc_macro_derive(With)]
 pub fn derive_with(tokens: TokenStream) -> TokenStream {
@@ -24,7 +22,7 @@ pub fn derive_with(tokens: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_derive(Curd, attributes(curd))]
-pub fn curd_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn curd_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let options = match CurdMacroOptions::from_derive_input(&input) {
         Ok(c) => c,
