@@ -419,7 +419,7 @@ dependencies = [
 name = "baizekit-derive"
 version = "0.1.19"
 dependencies = [
- "baizekit-seaorm",
+ "baizekit-seaorm 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "darling",
  "proc-macro2",
  "quote",
@@ -487,6 +487,27 @@ dependencies = [
  "sea-orm",
  "sea-orm-cli",
  "sea-orm-migration",
+ "serde",
+ "sqlx",
+ "syn 2.0.104",
+ "tokio",
+]
+
+[[package]]
+name = "baizekit-seaorm"
+version = "0.1.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "024c1e4a52341dbc480e88d0cd4ab746ff28461225624b8f0c88dba2a69611f9"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "darling",
+ "derive_more",
+ "dotenvy",
+ "futures-util",
+ "log",
+ "proc-macro2",
+ "sea-orm",
  "serde",
  "sqlx",
  "syn 2.0.104",
