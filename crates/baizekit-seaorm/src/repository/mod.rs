@@ -3,12 +3,10 @@ use sea_orm::{ConnectionTrait, DbErr, EntityTrait, IntoActiveModel, StreamTrait,
 pub use self::find::*;
 pub use self::search::*;
 pub use self::upsert::*;
-// pub use self::a::*;
 
 mod find;
 mod search;
 mod upsert;
-// mod a;
 
 pub trait RepositoryTrait<'db, DB> {
     fn db(&self) -> &'db DB;

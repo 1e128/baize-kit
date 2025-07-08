@@ -1,0 +1,32 @@
+use baizekit_derive::With;
+use baizekit_seaorm::curd::*;
+
+use super::*;
+
+#[derive(Debug)]
+pub enum FindFilter {}
+
+#[derive(Default, With)]
+pub struct SearchFilter {
+    pub paginate: Option<Pagination>,
+}
+
+impl PaginatedFilter for SearchFilter {
+    #[inline(always)]
+    fn pagination(&self) -> Option<Pagination> {
+        self.paginate.clone()
+    }
+}
+
+pub trait {{ entity_name }}Repository:
+    FindTrait<{{ entity_name }}, Error, FindFilter>
+    + SearchTrait<{{ entity_name }}, Error, SearchFilter>
+    + SearchStreamTrait<{{ entity_name }}, Error, SearchFilter>
+    + InsertTrait<{{ entity_name }}, Error>
+    + UpdateTrait<{{ entity_name }}, Error>
+    + DeleteTrait<{{ entity_name }}, Error>
+    + UpsertTrait<{{ entity_name }}, Error>
+    + BulkInsertTrait<{{ entity_name }}, Error>
+    + BulkUpsertTrait<{{ entity_name }}, Error>
+{
+}
