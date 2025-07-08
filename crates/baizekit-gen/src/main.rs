@@ -4,6 +4,7 @@ use dotenvy::dotenv;
 mod cli;
 mod domain;
 mod repository;
+mod utils;
 
 fn main() {
     dotenv().ok();
