@@ -11,6 +11,20 @@ pub enum Pagination {
     Cursor(u64),
 }
 
+impl Pagination {
+    pub fn offset(offset: u64, limit: u64) -> Self {
+        Self::Offset(offset, limit)
+    }
+
+    pub fn offset_tuple((offset, limit): (u64, u64)) -> Self {
+        Self::Offset(offset, limit)
+    }
+
+    pub fn cursor(cursor: u64) -> Self {
+        Self::Cursor(cursor)
+    }
+}
+
 /// 可分页的过滤器trait
 pub trait PaginatedFilter {
     /// 获取分页参数
@@ -88,11 +102,11 @@ where
     Entity: Send + 'static,
 {
     #[inline(always)]
-    async fn upsert(&self, domain_entity: Entity) -> Result<Entity, Err> {
-        self.upsert_with_tx(domain_entity, None).await
+    async fn upsert(&self, entity: Entity) -> Result<Option<Entity>, Err> {
+        self.upsert_with_tx(entity, None).await
     }
 
-    async fn upsert_with_tx(&self, domain_entity: Entity, tx: Option<&mut dyn Transaction>) -> Result<Entity, Err>;
+    async fn upsert_with_tx(&self, entity: Entity, tx: Option<&mut dyn Transaction>) -> Result<Option<Entity>, Err>;
 }
 
 #[async_trait::async_trait]

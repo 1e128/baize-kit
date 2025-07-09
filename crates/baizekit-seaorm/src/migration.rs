@@ -111,13 +111,13 @@ macro_rules! define_sea_orm_cli {
         /// - `args`: 生成实体时的额外参数
         /// - `migration_tables`: 需要生成实体的表名列表
         /// - `entities_relative_path`: 实体文件相对于项目根目录的路径
-        pub async fn run_generate_entities(args: &str, migration_tables: Vec<String>, entities_relative_path: &str) {
+        pub async fn run_generate_entities(args: &str, migration_tables: Vec<String>, lib_path:&str, entities_relative_path: &str) {
             let Ok(mut out_path) = get_cargo_project_root() else {
                 eprintln!("Failed to get cargo project root");
                 return;
             };
             println!("Project root: {:?}", out_path);
-            out_path.push(file!());
+            out_path.push(lib_path);
             out_path.pop();
             if !entities_relative_path.is_empty() {
                 out_path.push(entities_relative_path);

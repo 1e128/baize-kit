@@ -1,3 +1,4 @@
+pub use async_stream;
 pub use futures_util::stream::{BoxStream, StreamExt, TryStreamExt};
 
 #[cfg(feature = "derive")]

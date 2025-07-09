@@ -163,16 +163,16 @@ fn gen_search_trait_impl(cs: &CurlStruct, SearchOptions { filter, select_fn }: S
                     Some(Pagination::Offset(page, size)) => {
                         let paginator = select.paginate(&*self.#db_field_name, size);
                         let models = paginator.fetch_page(page - 1).await?;
-                        let ItemsAndPagesNumber { number_of_items, number_of_pages } = paginator.num_items_and_pages().await?;
-                        let has_more = number_of_pages > paginator.cur_page();
-                        (models, number_of_items, has_more)
+                        let page_info = paginator.num_items_and_pages().await?;
+                        let has_more = page_info.number_of_pages > paginator.cur_page();
+                        (models, page_info.number_of_items, has_more)
                     }
                     Some(Pagination::Cursor(size)) => {
                         let paginator = select.paginate(&*self.#db_field_name, size);
                         let models = paginator.fetch_page(0).await?;
-                        let ItemsAndPagesNumber { number_of_items, number_of_pages } = paginator.num_items_and_pages().await?;
-                        let has_more = number_of_pages > paginator.cur_page();
-                        (models, number_of_items, has_more)
+                        let page_info = paginator.num_items_and_pages().await?;
+                        let has_more = page_info.number_of_pages > paginator.cur_page();
+                        (models, page_info.number_of_items, has_more)
                     }
                 };
                 Ok((models.into_iter().map(#domain_entity::from).collect(), num_items, has_more))
@@ -300,9 +300,9 @@ fn gen_upsert_trait_impl(cs: &CurlStruct, UpsertOptions { on_conflict_fn }: Upse
     quote! {
         #[async_trait::async_trait]
         impl #impl_generics UpsertTrait<#domain_entity, #error> for #struct_name #ty_generics #where_clause {
-            async fn upsert_with_tx(&self, data: #domain_entity, tx: Option<&mut dyn Transaction>) -> Result<#domain_entity, #error> {
+            async fn upsert_with_tx(&self, data: #domain_entity, tx: Option<&mut dyn Transaction>) -> Result<Option<#domain_entity>, #error> {
                 let insert = #db_entity::insert(ActiveModel::from(data)).on_conflict(#on_conflict_fn());
-                match tx {
+                let result = match tx {
                     None => insert.exec_with_returning(&*self.#db_field_name).await,
                     Some(tx) => {
                         let tx = tx
@@ -311,9 +311,13 @@ fn gen_upsert_trait_impl(cs: &CurlStruct, UpsertOptions { on_conflict_fn }: Upse
                             .ok_or_else(|| DbErr::Custom("Invalid transaction type".to_string()))?;
                         insert.exec_with_returning(tx.inner()).await
                     }
+                };
+
+                match result {
+                    Ok(model) => Ok(Some(#domain_entity::from(model))),
+                    Err(DbErr::RecordNotInserted) => Ok(None),
+                    Err(err) => Err(#error::from(err)),
                 }
-                .map(#domain_entity::from)
-                .map_err(#error::from)
             }
         }
     }
