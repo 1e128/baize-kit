@@ -406,7 +406,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-api"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "axum",
  "prettyplease",
@@ -422,9 +422,9 @@ dependencies = [
 
 [[package]]
 name = "baizekit-derive"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
- "baizekit-seaorm 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "baizekit-seaorm",
  "darling",
  "proc-macro2",
  "quote",
@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-gen"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "clap",
  "convert_case",
@@ -443,7 +443,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-kafka"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "rdkafka",
  "serde",
@@ -455,7 +455,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-log"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "chrono",
  "serde",
@@ -470,7 +470,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-redis"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "redis",
  "serde",
@@ -478,7 +478,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-seaorm"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -499,29 +499,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "baizekit-seaorm"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "024c1e4a52341dbc480e88d0cd4ab746ff28461225624b8f0c88dba2a69611f9"
-dependencies = [
- "async-stream",
- "async-trait",
- "darling",
- "derive_more",
- "dotenvy",
- "futures-util",
- "log",
- "proc-macro2",
- "sea-orm",
- "serde",
- "sqlx",
- "syn 2.0.104",
- "tokio",
-]
-
-[[package]]
 name = "baizekit-serde"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "chrono",
  "rust_decimal",

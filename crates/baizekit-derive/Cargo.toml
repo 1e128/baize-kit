@@ -15,7 +15,7 @@ description = "Derive ToolKit"
 proc-macro = true
 
 [dependencies]
-baizekit-seaorm = { version = "0.1.19", features = ["derive"] }
+baizekit-seaorm = { version = "0.1.20", features = ["derive"] }
 syn = { version = "2.0.104", features = ["full"] }
 quote = "1.0.40"
 proc-macro2 = "1.0.95"
