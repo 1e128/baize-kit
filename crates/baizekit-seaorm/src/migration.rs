@@ -6,6 +6,35 @@ use dotenvy::dotenv;
 use sea_orm::{ConnectOptions, Database};
 use sea_orm_cli::{handle_error, run_generate_command, Commands, GenerateSubcommands};
 use sea_orm_migration::MigratorTrait;
+use tokio::io;
+use tokio::io::AsyncBufReadExt;
+
+/// 读取用户输入并检查是否确认(y/Y)
+/// 返回 `true` 如果用户输入 'y' 或 'Y'，否则返回 `false`
+pub async fn confirm_action(prompt: &str) -> bool {
+    // 创建异步标准输入读取器
+    let stdin = io::stdin();
+    let mut reader = io::BufReader::new(stdin).lines();
+
+    // 打印提示信息
+    println!("{} (y/N)", prompt);
+
+    // 异步读取用户输入
+    match reader.next_line().await {
+        Ok(Some(input)) => {
+            // 检查输入是否为 'y' 或 'Y'
+            input.trim().eq_ignore_ascii_case("y")
+        }
+        Ok(None) => {
+            println!("EOF reached, assuming 'No'");
+            false
+        }
+        Err(e) => {
+            println!("Error reading input: {}, assuming 'No'", e);
+            false
+        }
+    }
+}
 
 pub fn get_cargo_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     // 获取 CARGO_MANIFEST_DIR 环境变量
@@ -73,22 +102,31 @@ where
 
     let args_str: Vec<&str> = patch_args.into_iter().chain(args.split_whitespace()).to_owned().collect();
     println!("Args as &str: {:?}", args_str);
-    // let cli = sea_orm_migration::cli::Cli::parse_from(args_str);
-
-    let Ok(url) = env::var("DATABASE_URL") else {
-        panic!("Environment variable 'DATABASE_URL' not set");
-    };
-    let schema = env::var("DATABASE_SCHEMA").unwrap_or("public".to_owned());
-
-    let connect_options = ConnectOptions::new(url).set_schema_search_path(schema).to_owned();
-
-    let db = Database::connect(connect_options)
-        .await
-        .expect("Fail to acquire database connection");
 
     let cli = sea_orm_cli::Cli::parse_from(args_str);
     match cli.command {
-        Commands::Migrate { command, .. } => {
+        Commands::Migrate { command, database_url, database_schema, .. } => {
+            let url = match (env::var("DATABASE_URL"), database_url) {
+                (_, Some(url)) => url,
+                (Ok(url), _) => url,
+                _ => panic!("Environment variable 'DATABASE_URL' not set"),
+            };
+            let schema = match (env::var("DATABASE_SCHEMA"), database_schema) {
+                (_, Some(schema)) => schema,
+                (Ok(schema), _) => schema,
+                _ => "public".to_owned(),
+            };
+            let prompt = format!("数据库URL:\x1B[31m{}\x1B[0m, Schema:\x1B[31m{}\x1B[0m", url, schema);
+            if confirm_action(&prompt).await {
+                println!("开始执行数据库迁移...");
+            }else{
+                println!("取消执行数据库迁移...");
+                return 
+            }
+            let connect_options = ConnectOptions::new(url).set_schema_search_path(schema).to_owned();
+            let db = Database::connect(connect_options)
+                .await
+                .expect("Fail to acquire database connection");
             sea_orm_migration::cli::run_migrate(migrator, &db, command, cli.verbose)
                 .await
                 .unwrap_or_else(handle_error);
@@ -111,7 +149,12 @@ macro_rules! define_sea_orm_cli {
         /// - `args`: 生成实体时的额外参数
         /// - `migration_tables`: 需要生成实体的表名列表
         /// - `entities_relative_path`: 实体文件相对于项目根目录的路径
-        pub async fn run_generate_entities(args: &str, migration_tables: Vec<String>, lib_path:&str, entities_relative_path: &str) {
+        pub async fn run_generate_entities(
+            args: &str,
+            migration_tables: Vec<String>,
+            lib_path: &str,
+            entities_relative_path: &str,
+        ) {
             let Ok(mut out_path) = get_cargo_project_root() else {
                 eprintln!("Failed to get cargo project root");
                 return;
