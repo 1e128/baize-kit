@@ -406,7 +406,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-api"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "axum",
  "prettyplease",
@@ -422,7 +422,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-derive"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "baizekit-seaorm",
  "darling",
@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-gen"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "clap",
  "convert_case",
@@ -443,7 +443,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-kafka"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "rdkafka",
  "serde",
@@ -455,7 +455,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-log"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "chrono",
  "serde",
@@ -470,7 +470,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-redis"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "redis",
  "serde",
@@ -478,7 +478,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-seaorm"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -500,7 +500,7 @@ dependencies = [
 
 [[package]]
 name = "baizekit-serde"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "chrono",
  "rust_decimal",
