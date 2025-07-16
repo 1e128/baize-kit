@@ -1,4 +1,4 @@
-use baizekit_derive::With;
+use baizekit_derive::{With, PaginatedFilter};
 use baizekit_seaorm::curd::*;
 
 use super::*;
@@ -6,16 +6,10 @@ use super::*;
 #[derive(Debug)]
 pub enum FindFilter {}
 
-#[derive(Default, With)]
+#[derive(Default, With, PaginatedFilter)]
 pub struct SearchFilter {
+    #[paginate]
     pub paginate: Option<Pagination>,
-}
-
-impl PaginatedFilter for SearchFilter {
-    #[inline(always)]
-    fn pagination(&self) -> Option<Pagination> {
-        self.paginate.clone()
-    }
 }
 
 pub trait {{ entity_name }}Repository:

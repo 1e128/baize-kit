@@ -17,10 +17,6 @@
 /// 数据提取模块，用于从请求中提取参数和认证信息
 pub mod extract;
 
-/// OpenAPI 文档相关
-#[cfg(feature = "openapi")]
-pub mod openapi;
-
 /// 响应封装模块，包含统一响应格式和错误处理
 pub mod response;
 

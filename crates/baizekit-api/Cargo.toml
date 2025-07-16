@@ -15,18 +15,3 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140" }
 tracing = { version = "0.1.41" }
 utoipa = { version = "5.4.0" }
-
-quote = { version = "1.0.40", optional = true }
-syn = { version = "2.0.104", optional = true, features = ["parsing", "full"] }
-walkdir = { version = "2.5.0", optional = true }
-proc-macro2 = { version = "1.0.95", optional = true }
-prettyplease = { version = "0.2.32", optional = true }
-
-[features]
-openapi = [
-    "quote",
-    "syn",
-    "walkdir",
-    "proc-macro2",
-    "prettyplease",
-]
