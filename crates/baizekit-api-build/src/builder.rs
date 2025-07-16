@@ -35,8 +35,6 @@ impl Builder {
         let handlers = HttpHandler::parse(&self.project_path, &self.handlers_dir, &self.file_matcher)?;
         let code = CodeGenerator::new(handlers, self.app_state.clone()).generate_code();
 
-        println!("{:?}", code);
-
         let out_dir = self.output_path.clone().unwrap_or_else(|| std::env::var("OUT_DIR").unwrap());
         std::fs::write(format!("{}/{}.rs", out_dir, self.output_name), code)?;
 
