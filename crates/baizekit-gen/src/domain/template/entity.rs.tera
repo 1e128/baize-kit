@@ -1,7 +1,0 @@
-use chrono::{DateTime, Utc};
-
-#[derive(Clone, Debug)]
-pub struct {{ entity_name }} {
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
