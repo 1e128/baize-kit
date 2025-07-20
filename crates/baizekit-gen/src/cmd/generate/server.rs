@@ -7,12 +7,13 @@ use clap::Args;
 use log::info;
 
 use crate::config::{config_file_path, BaizeConfig, BaizeTemplate};
+use crate::workspace::{Workspace, WorkspaceMember};
 
 #[derive(Clone, Debug, Args)]
 #[clap(arg_required_else_help(true))]
-pub struct GenerateServiceCommand {
-    #[arg(short, long = "service_name")]
-    pub service_name: String,
+pub struct GenerateServerCommand {
+    #[arg(short, long, help = "服务名称")]
+    pub server_name: String,
 
     #[arg(short, long, help = "目标路径, 如果不指定，则从配置中读取")]
     pub destination: Option<Utf8PathBuf>,
@@ -21,7 +22,7 @@ pub struct GenerateServiceCommand {
     pub template_values: Vec<String>,
 }
 
-impl GenerateServiceCommand {
+impl GenerateServerCommand {
     pub fn run(self) -> anyhow::Result<()> {
         let metadata = MetadataCommand::new()
             .no_deps() // 可选，表示不获取依赖项信息
@@ -33,13 +34,23 @@ impl GenerateServiceCommand {
         let config_str = std::fs::read_to_string(config_file)?;
         let config: BaizeConfig = toml::from_str(&config_str)?;
 
-        let service_template = config.templates.get("crates").unwrap(); // todo: z
+        let server_template = config
+            .templates
+            .get("server")
+            .ok_or_else(|| anyhow::anyhow!("未找到服务模板"))?;
 
         let target_path = self
             .destination
             .clone()
-            .unwrap_or_else(|| metadata.workspace_root.join(service_template.config.destination.clone()));
-        self.run_cargo_generate(service_template, target_path.into_std_path_buf());
+            .unwrap_or_else(|| metadata.workspace_root.join(server_template.config.destination.clone()));
+        self.run_cargo_generate(server_template, target_path.into_std_path_buf());
+
+        let mut workspace = Workspace::try_new(metadata.workspace_root)?;
+        let member_path_glob = format!("{}/{1}/{1}-*", server_template.config.destination, self.server_name);
+        let workspace_member = WorkspaceMember::try_new_from_glob(&member_path_glob)?;
+        workspace.add_member(workspace_member)?;
+        workspace.save()?;
+        info!("Added server to workspace. member: {}", member_path_glob);
         Ok(())
     }
 
@@ -47,7 +58,7 @@ impl GenerateServiceCommand {
         let mut args = GenerateArgs::default();
         args.template_path.path = Some(template.path.to_string_lossy().to_string());
         args.init = template.config.init;
-        args.name = Some(self.service_name.clone());
+        args.name = Some(self.server_name.clone());
         args.destination = Some(target_path);
         args.define = self.template_values.iter().map(ToString::to_string).collect::<Vec<_>>();
 

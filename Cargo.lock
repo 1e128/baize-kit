@@ -511,15 +511,18 @@ dependencies = [
 name = "baizekit-gen"
 version = "0.1.22"
 dependencies = [
+ "anstyle",
  "anyhow",
  "auth-git2",
  "cargo-generate",
+ "cargo-util-schemas",
  "cargo_metadata",
  "clap",
  "dotenvy",
  "env_logger",
  "git2",
  "gix-config",
+ "glob",
  "home",
  "log",
  "serde",

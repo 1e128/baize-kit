@@ -1,11 +1,14 @@
 use clap::{Args, Subcommand};
 
 mod entity;
-mod service;
+mod server;
 
 #[derive(Debug, Subcommand)]
 pub enum GenerateSubCommand {
-    Svc(service::GenerateServiceCommand),
+    /// 生成服务代码. 包含 core、sdk
+    #[command(alias = "svr")]
+    Server(server::GenerateServerCommand),
+    /// 生成实体代码. 包含 domain、db、service
     Entity(entity::GenerateEntityCommand),
 }
 
@@ -18,7 +21,7 @@ pub struct Generate {
 impl Generate {
     pub fn run(self) -> anyhow::Result<()> {
         match self.command {
-            GenerateSubCommand::Svc(cmd) => cmd.run(),
+            GenerateSubCommand::Server(cmd) => cmd.run(),
             GenerateSubCommand::Entity(cmd) => cmd.run(),
         }
     }

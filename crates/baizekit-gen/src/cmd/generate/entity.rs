@@ -27,8 +27,6 @@ impl GenerateEntityCommand {
             .exec()
             .expect("无法获取 cargo metadata");
 
-        info!("WorkspaceRoot: {:#?}", metadata.workspace_root);
-
         let core_crate_name = format!("{}-core", self.crate_name);
         let core_package = metadata
             .packages
@@ -72,7 +70,8 @@ impl GenerateEntityCommand {
         target_path.push(template.config.destination.clone()); // add destination
         args.destination = Some(target_path.into_std_path_buf()); // set destination into args
 
-        let result = generate(args);
-        info!("{:?}", result);
+        let _ = generate(args)
+            .inspect(|path| info!("Generated: {}", path.display()))
+            .inspect_err(|err| info!("Generate Failed. error: {}", err));
     }
 }
