@@ -1,8 +1,10 @@
 use clap::Parser;
+use crate::cmd::db::{DbCommand};
 
 mod generate;
 mod init;
 mod new;
+mod db;
 
 mod style {
     use anstyle::*;
@@ -39,6 +41,8 @@ pub enum Commands {
     /// 生成代码. [alias: gen]
     #[command(alias = "gen")]
     Generate(generate::Generate),
+    /// db
+    Db(DbCommand)
 }
 
 impl Commands {
@@ -47,6 +51,7 @@ impl Commands {
             Commands::New(cmd) => cmd.run(),
             Commands::Init(cmd) => cmd.run(),
             Commands::Generate(cmd) => cmd.run(),
+            Commands::Db(cmd) => { cmd.run()}
         }
     }
 }

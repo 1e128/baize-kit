@@ -528,27 +528,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "baizekit-derive"
-version = "0.1.23"
-dependencies = [
- "baizekit-seaorm",
- "darling",
- "proc-macro2",
- "quote",
- "syn 2.0.104",
-]
-
-[[package]]
-name = "baizekit-gen"
+name = "baizekit-cli"
 version = "0.1.23"
 dependencies = [
  "anstyle",
  "anyhow",
  "auth-git2",
+ "baizekit-seaorm",
  "cargo-generate",
  "cargo-util-schemas",
  "cargo_metadata 0.21.0",
  "clap",
+ "dialoguer",
  "dotenvy",
  "env_logger",
  "git2",
@@ -558,8 +549,22 @@ dependencies = [
  "log",
  "regex",
  "serde",
+ "syn 2.0.104",
  "tempfile",
+ "tokio",
  "toml 0.9.2",
+ "walkdir",
+]
+
+[[package]]
+name = "baizekit-derive"
+version = "0.1.23"
+dependencies = [
+ "baizekit-seaorm",
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
 ]
 
 [[package]]

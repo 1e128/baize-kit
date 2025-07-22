@@ -1,5 +1,5 @@
 [package]
-name = "baizekit-gen"
+name = "baizekit-cli"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -33,3 +33,9 @@ toml = { workspace = true }
 tempfile = { version = "3.19.0" }
 env_logger = "0.11.8"
 glob = "0.3.2"
+syn = { workspace = true, features = ["parsing", "full"] }
+walkdir = "2.5.0"
+
+baizekit-seaorm = { workspace = true , features = ["migration"]}
+tokio = {workspace = true, features = ["default"]}
+dialoguer = "0.11.0"

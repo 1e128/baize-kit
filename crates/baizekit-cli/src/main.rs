@@ -1,4 +1,4 @@
-use baizekit_gen::cmd::Commands;
+use baizekit_cli::cmd::Commands;
 use clap::Parser;
 
 fn main() -> anyhow::Result<()> {
