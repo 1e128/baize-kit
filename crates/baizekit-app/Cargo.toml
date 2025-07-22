@@ -9,6 +9,7 @@ license.workspace = true
 readme.workspace = true
 keywords.workspace = true
 categories.workspace = true
+description = "baize app framework"
 
 [dependencies]
 snafu = { workspace = true }

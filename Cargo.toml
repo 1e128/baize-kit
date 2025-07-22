@@ -7,7 +7,7 @@ resolver = "3"
 
 
 [workspace.package]
-version = "0.1.22"
+version = "0.1.23"
 edition = "2024"
 rust-version = "1.88.0"
 homepage = "https://github.com/1e128/baize-kit"
@@ -18,14 +18,14 @@ keywords = ["api", "log", "seaorm", "serde", "toolkit"]
 categories = ["database", "web-programming"]
 
 [workspace.dependencies]
-baizekit-api = { path = "crates/baizekit-api" }
-baizekit-app = { path = "crates/baizekit-app" }
-baizekit-derive = { path = "crates/baizekit-derive" }
-baizekit-kafka = { path = "crates/baizekit-kafka" }
-baizekit-log = { path = "crates/baizekit-log" }
-baizekit-redis = { path = "crates/baizekit-redis" }
-baizekit-seaorm = { path = "crates/baizekit-seaorm" }
-baizekit-serde = { path = "crates/baizekit-serde" }
+baizekit-api = "0.1.23"
+baizekit-app = "0.1.23"
+baizekit-derive = "0.1.23"
+baizekit-kafka = "0.1.23"
+baizekit-log = "0.1.23"
+baizekit-redis = "0.1.23"
+baizekit-seaorm = "0.1.23"
+baizekit-serde = "0.1.23"
 
 async-stream = "0.3.6"
 async-trait = "0.1.88"
