@@ -1,8 +1,8 @@
 use baizekit_derive::With;
 use globset::{GlobBuilder, GlobMatcher};
 
-use crate::generator::CodeGenerator;
-use crate::handler::HttpHandler;
+use crate::build::generator::CodeGenerator;
+use crate::build::handler::HttpHandler;
 
 #[derive(Debug, Default, With)]
 pub struct Builder {

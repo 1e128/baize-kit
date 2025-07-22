@@ -1,5 +1,6 @@
 pub use sea_orm;
 
+pub mod component;
 pub mod connection;
 pub mod curd;
 

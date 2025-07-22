@@ -1,10 +1,10 @@
-use baizekit_seaorm::curd::derive::{CurdMacroOptions, derive_curd_impl};
+use baizekit_seaorm::curd::derive::{derive_curd_impl, CurdMacroOptions};
 use darling::FromDeriveInput;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, parse_macro_input};
+use syn::{parse_macro_input, Data, DeriveInput};
 
-use crate::derive_with::{Input, derive_with_impl};
+use crate::derive_with::{derive_with_impl, Input};
 
 mod derive_with;
 
@@ -57,8 +57,8 @@ pub fn derive_paginated_filter(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        impl baizekit_seaorm::curd::PaginatedFilter for #struct_name {
-            fn pagination(&self) -> Option<baizekit_seaorm::curd::Pagination> {
+        impl PaginatedFilter for #struct_name {
+            fn pagination(&self) -> Option<Pagination> {
                 self.#field_name.clone()
             }
         }

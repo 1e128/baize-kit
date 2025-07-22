@@ -3,15 +3,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use gix_config::{File as GitConfigParser, Source};
 
-use crate::git::utils::home;
-
 pub fn find_gitconfig() -> Result<Option<PathBuf>> {
-    let gitconfig = home().map(|home| home.join(".gitconfig"))?;
-    if gitconfig.exists() {
-        return Ok(Some(gitconfig));
-    }
-
-    Ok(None)
+    Ok(home::home_dir().map(|home| home.join(".gitconfig")).filter(|v| v.exists()))
 }
 
 /// trades urls, to replace a given repo remote url with the right on based

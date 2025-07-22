@@ -2,6 +2,7 @@ use clap::Parser;
 
 mod generate;
 mod init;
+mod new;
 
 mod style {
     use anstyle::*;
@@ -31,6 +32,8 @@ mod style {
 #[derive(Debug, Parser)]
 #[command(author, version, about, styles(style::STYLES))]
 pub enum Commands {
+    /// 新建一个App项目
+    New(new::NewAppCommand),
     /// 初始化模板配置
     Init(init::InitCommand),
     /// 生成代码. [alias: gen]
@@ -41,6 +44,7 @@ pub enum Commands {
 impl Commands {
     pub fn run(self) -> anyhow::Result<()> {
         match self {
+            Commands::New(cmd) => cmd.run(),
             Commands::Init(cmd) => cmd.run(),
             Commands::Generate(cmd) => cmd.run(),
         }

@@ -1,3 +1,4 @@
+use std::convert::identity;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
@@ -7,12 +8,14 @@ use log::info;
 use toml::Value;
 
 use crate::config::*;
-use crate::git;
+use crate::utils::git;
+
+const CONFIG_TAG: &str = "baize";
 
 /// 配置文件管理
 #[derive(Clone, Debug, Args)]
 pub struct InitCommand {
-    #[arg(long, default_value = "https://github.com/WTF-US/baizekit-template.git", help = "模板仓库地址")]
+    #[arg(long, default_value = "https://github.com/1e128/baize-template.git", help = "模板仓库地址")]
     repo: String,
 }
 
@@ -28,12 +31,14 @@ impl InitCommand {
         // 创建模板配置目录
         let template_dir = template_dir(workspace_root.as_std_path());
         if !template_dir.exists() {
+            info!("Creating template directory: {}", template_dir.display());
             std::fs::create_dir_all(&template_dir)?;
         }
 
         // 确保 .gitignore 文件存在并包含模板配置目录
         let gitignore_path = workspace_root.join(".gitignore");
         git::add_gitignore_entry(gitignore_path.as_std_path(), BAIZE_TEMPLATE_DIR)?;
+        info!("Added .gitignore entry {} into {}", BAIZE_TEMPLATE_DIR, gitignore_path);
 
         // 下载模板仓库
         fetch_template_repo(&self.repo, template_dir.as_path())?;
@@ -41,10 +46,15 @@ impl InitCommand {
         // 扫描模板目录下的所有模板
         let template_dirs = locate_template_configs(template_dir.as_path())?;
 
+        info!("Scanning template directory. count: {}", template_dirs.len());
         let templates = template_dirs
             .into_iter()
             .map(|template| parse_baize_template(template_dir.as_path(), template))
-            .collect::<anyhow::Result<Vec<BaizeTemplate>>>()?;
+            .collect::<anyhow::Result<Vec<Option<BaizeTemplate>>>>()?
+            .into_iter()
+            .filter_map(identity)
+            .collect::<Vec<BaizeTemplate>>();
+        info!("Parsed templates: {:?}", templates);
 
         // 生成配置文件
         let config = BaizeConfig { templates: templates.into_iter().map(|t| (t.config.name.clone(), t)).collect() };
@@ -59,7 +69,7 @@ impl InitCommand {
 
 /// 从远程仓库克隆最新模板并复制到目标目录
 fn fetch_template_repo(repo_url: &str, target_dir: &Path) -> anyhow::Result<PathBuf> {
-    let (tmp_path, _branch) = git::clone_git_template_into_temp(repo_url, None, None, None, None, None, false)?;
+    let tmp_path = git::clone_git_template_into_temp(repo_url, None, None, None, None, None, false)?;
     git::remove_history(tmp_path.path())?;
     info!("Template cloned to {}, deleting .git history", tmp_path.path().display());
 
@@ -82,18 +92,16 @@ fn fetch_template_repo(repo_url: &str, target_dir: &Path) -> anyhow::Result<Path
 }
 
 /// 解析 cargo-generate.toml 文件, 从中提取出对应的模板配置
-fn parse_baize_template(base_dir: &Path, template_sub_folder: PathBuf) -> anyhow::Result<BaizeTemplate> {
+fn parse_baize_template(base_dir: &Path, template_sub_folder: PathBuf) -> anyhow::Result<Option<BaizeTemplate>> {
     let template_dir = base_dir.join(template_sub_folder);
     let template_config_file = template_dir.clone().join(CARGO_TEMPLATE_CONFIG_FILE_NAME);
 
     let content = std::fs::read_to_string(&template_config_file).with_context(|| "无法读取模板配置文件")?;
     let value: Value = toml::from_str(&content).with_context(|| "解析 TOML 内容失败")?;
-    let baize_value = value.get("baize").with_context(|| "缺少 [baize] 配置块")?;
-
-    let baize_template_config: BaizeTemplateConfig = baize_value
-        .clone()
-        .try_into()
-        .with_context(|| "无法将 [baize] 配置块解析为 BaizeTemplateConfig")?;
-
-    Ok(BaizeTemplate { path: template_dir, config: baize_template_config })
+    value
+        .get(CONFIG_TAG)
+        .map(|v| v.clone().try_into::<BaizeTemplateConfig>())
+        .transpose()
+        .map(|cfg_opt| cfg_opt.map(|cfg| BaizeTemplate { path: template_dir, config: cfg }))
+        .map_err(Into::into)
 }

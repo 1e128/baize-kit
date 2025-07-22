@@ -1,0 +1,51 @@
+[package]
+name = "baizekit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "BaizeKit"
+
+[dependencies]
+baizekit-api = { workspace = true }
+baizekit-app = { workspace = true }
+baizekit-derive = { workspace = true }
+baizekit-kafka = { workspace = true, optional = true }
+baizekit-log = { workspace = true }
+baizekit-redis = { workspace = true, optional = true }
+baizekit-seaorm = { workspace = true }
+baizekit-serde = { workspace = true }
+
+tracing = { workspace = true }
+sea-orm = { workspace = true }
+
+
+[features]
+version = [
+    "baizekit-app/build-version",
+]
+derive = [
+    "baizekit-seaorm/derive"
+]
+db-partition = [
+    "baizekit-seaorm/partition"
+]
+db-migration = [
+    "baizekit-seaorm/migration"
+]
+http-build = [
+    "baizekit-api/http-build"
+]
+kafka = [
+    "baizekit-kafka",
+    "baizekit-kafka/cmake-build"
+]
+redis = [
+    "baizekit-redis"
+]
+serde = []

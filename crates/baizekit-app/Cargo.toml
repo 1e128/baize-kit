@@ -1,0 +1,26 @@
+[package]
+name = "baizekit-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+snafu = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+config = { workspace = true }
+once_cell = { workspace = true }
+vergen-pretty = { version = "1.0.1", features = ["color", "header", "trace"] }
+vergen-gix = { version = "1.0.9", features = ["build", "cargo", "rustc", "si"], optional = true }
+
+[features]
+default = []
+build-version = ["vergen-gix"]

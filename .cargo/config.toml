@@ -1,2 +1,9 @@
 [patch.crates-io]
+baizekit-api = { path = "crates/baizekit-api" }
+baizekit-app = { path = "crates/baizekit-app" }
+baizekit-derive = { path = "crates/baizekit-derive" }
+baizekit-kafka = { path = "crates/baizekit-kafka" }
+baizekit-log = { path = "crates/baizekit-log" }
+baizekit-redis = { path = "crates/baizekit-redis" }
 baizekit-seaorm = { path = "crates/baizekit-seaorm" }
+baizekit-serde = { path = "crates/baizekit-serde" }

@@ -1,4 +1,5 @@
 use sea_orm::prelude::async_trait::async_trait;
+use sea_orm::DbErr;
 
 /// 分区类型
 #[derive(Debug, Clone)]
@@ -20,11 +21,11 @@ pub struct PartitionOptions {
 #[async_trait]
 pub trait PartitionAdapter {
     /// 查询分区列表
-    async fn query(&self, table_name: String) -> Result<Vec<String>, sqlx::Error>;
+    async fn query(&self, table_name: String) -> Result<Vec<String>, DbErr>;
 
     /// 创建分区
-    async fn create(&self, partition: PartitionOptions) -> Result<(), sqlx::Error>;
+    async fn create(&self, partition: PartitionOptions) -> Result<(), DbErr>;
 
     /// 删除分区
-    async fn drop(&self, partition_name: String) -> Result<(), sqlx::Error>;
+    async fn drop(&self, partition_name: String) -> Result<(), DbErr>;
 }

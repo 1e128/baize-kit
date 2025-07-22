@@ -1,50 +1,50 @@
+use std::sync::Arc;
+
 use sea_orm::prelude::async_trait::async_trait;
-use sqlx::{PgPool, Row};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, FromQueryResult, Statement, Value};
 
 use super::{PartitionAdapter, PartitionOptions, PartitionStrategy};
-use crate::connection::{try_new_pg_pool, Config};
 
 #[derive(Clone)]
 pub struct PostgresPartitionAdapter {
-    pub pool: PgPool,
+    pub db: Arc<DatabaseConnection>,
 }
 
 impl PostgresPartitionAdapter {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
-    }
-
-    pub async fn try_new_from_config(cfg: Config) -> Result<Self, sqlx::Error> {
-        let pool = try_new_pg_pool(cfg).await?;
-        Ok(Self::new(pool))
+    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+        Self { db }
     }
 }
 
 #[async_trait]
 impl PartitionAdapter for PostgresPartitionAdapter {
-    async fn query(&self, table_name: String) -> Result<Vec<String>, sqlx::Error> {
-        let rows = sqlx::query(
-            r#"
+    async fn query(&self, table_name: String) -> Result<Vec<String>, DbErr> {
+        #[derive(Debug, FromQueryResult)]
+        struct PartitionRow {
+            partition_name: String,
+        }
+
+        let sql = r#"
             SELECT child.relname AS partition_name
             FROM pg_inherits
             JOIN pg_class parent ON pg_inherits.inhparent = parent.oid
             JOIN pg_class child ON pg_inherits.inhrelid = child.oid
             WHERE parent.relname = $1
             ORDER BY child.relname;
-            "#,
-        )
-        .bind(table_name)
-        .fetch_all(&self.pool)
+        "#;
+
+        let rows: Vec<PartitionRow> = PartitionRow::find_by_statement(Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            sql,
+            vec![Value::String(Some(Box::new(table_name)))],
+        ))
+        .all(self.db.as_ref())
         .await?;
 
-        let partitions = rows
-            .into_iter()
-            .filter_map(|row| row.try_get::<String, _>("partition_name").ok())
-            .collect();
-        Ok(partitions)
+        Ok(rows.into_iter().map(|r| r.partition_name).collect())
     }
 
-    async fn create(&self, partition: PartitionOptions) -> Result<(), sqlx::Error> {
+    async fn create(&self, partition: PartitionOptions) -> Result<(), DbErr> {
         let strategy_sql = match partition.strategy {
             PartitionStrategy::Range { start, end } => {
                 format!("FOR VALUES FROM ('{start}') TO ('{end}')")
@@ -69,13 +69,13 @@ impl PartitionAdapter for PostgresPartitionAdapter {
             strategy = strategy_sql,
         );
 
-        sqlx::query(&sql).execute(&self.pool).await?;
+        self.db.execute_unprepared(&sql).await?;
         Ok(())
     }
 
-    async fn drop(&self, partition_name: String) -> Result<(), sqlx::Error> {
+    async fn drop(&self, partition_name: String) -> Result<(), DbErr> {
         let sql = format!("DROP TABLE IF EXISTS {partition_name} CASCADE;");
-        sqlx::query(&sql).execute(&self.pool).await?;
+        self.db.execute_unprepared(&sql).await?;
         Ok(())
     }
 }

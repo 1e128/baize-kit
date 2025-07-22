@@ -4,6 +4,7 @@ use clap::Args;
 use log::info;
 
 use crate::config::{config_file_path, BaizeConfig, BaizeTemplate};
+use crate::utils::mod_utils::update_mod_rs;
 
 #[derive(Clone, Debug, Args)]
 pub struct GenerateEntityCommand {
@@ -50,15 +51,15 @@ impl GenerateEntityCommand {
         let config_str = std::fs::read_to_string(config_file)?;
         let config: BaizeConfig = toml::from_str(&config_str)?;
 
-        self.run_cargo_generate(core_package, config.templates.get("db").unwrap()); // todo: z
-        self.run_cargo_generate(core_package, config.templates.get("domain").unwrap());
-        self.run_cargo_generate(core_package, config.templates.get("service-core").unwrap());
-        self.run_cargo_generate(sdk_package, config.templates.get("service-sdk").unwrap());
+        self.run_cargo_generate(core_package, config.templates.get("db").unwrap())?; // todo: z
+        self.run_cargo_generate(core_package, config.templates.get("domain").unwrap())?;
+        self.run_cargo_generate(core_package, config.templates.get("service-core").unwrap())?;
+        self.run_cargo_generate(sdk_package, config.templates.get("service-sdk").unwrap())?;
 
         Ok(())
     }
 
-    fn run_cargo_generate(&self, package: &Package, template: &BaizeTemplate) {
+    fn run_cargo_generate(&self, package: &Package, template: &BaizeTemplate) -> anyhow::Result<()> {
         let mut args = GenerateArgs::default();
         args.template_path.path = Some(template.path.to_string_lossy().to_string());
         args.init = template.config.init;
@@ -70,8 +71,11 @@ impl GenerateEntityCommand {
         target_path.push(template.config.destination.clone()); // add destination
         args.destination = Some(target_path.into_std_path_buf()); // set destination into args
 
-        let _ = generate(args)
+        let path = generate(args)
             .inspect(|path| info!("Generated: {}", path.display()))
-            .inspect_err(|err| info!("Generate Failed. error: {}", err));
+            .inspect_err(|err| info!("Generate Failed. error: {}", err))?;
+
+        update_mod_rs(path)?;
+        Ok(())
     }
 }

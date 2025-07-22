@@ -2,7 +2,7 @@ use axum::http::Method;
 use quote::{format_ident, quote};
 use syn::parse_file;
 
-use crate::handler::HttpHandler;
+use crate::build::handler::HttpHandler;
 
 pub(crate) struct CodeGenerator {
     handlers: Vec<HttpHandler>,

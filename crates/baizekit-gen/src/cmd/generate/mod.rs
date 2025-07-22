@@ -1,13 +1,12 @@
 use clap::{Args, Subcommand};
 
+mod crates;
 mod entity;
-mod server;
 
 #[derive(Debug, Subcommand)]
 pub enum GenerateSubCommand {
     /// 生成服务代码. 包含 core、sdk
-    #[command(alias = "svr")]
-    Server(server::GenerateServerCommand),
+    Crates(crates::GenerateCratesCommand),
     /// 生成实体代码. 包含 domain、db、service
     Entity(entity::GenerateEntityCommand),
 }
@@ -21,7 +20,7 @@ pub struct Generate {
 impl Generate {
     pub fn run(self) -> anyhow::Result<()> {
         match self.command {
-            GenerateSubCommand::Server(cmd) => cmd.run(),
+            GenerateSubCommand::Crates(cmd) => cmd.run(),
             GenerateSubCommand::Entity(cmd) => cmd.run(),
         }
     }

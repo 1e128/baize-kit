@@ -1,1 +1,3 @@
-pub mod principal;
+mod principal;
+
+pub use principal::*;

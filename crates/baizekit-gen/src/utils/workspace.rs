@@ -62,6 +62,7 @@ pub struct WorkspaceMember {
 }
 
 impl WorkspaceMember {
+    #[allow(unused)]
     pub fn try_new(member_path: &Path) -> Result<Self> {
         let cargo_toml_path = member_path.join("Cargo.toml");
         let content = fs::read_to_string(&cargo_toml_path)

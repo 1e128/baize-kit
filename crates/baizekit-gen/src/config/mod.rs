@@ -22,6 +22,7 @@ pub struct BaizeTemplateConfig {
     /// 模板的名称
     pub name: String,
     /// 代码生成的目标目录, 指在哪个目录下生成文件
+    #[serde(default)]
     pub destination: Utf8PathBuf,
     /// 生成文件时是否要包含文件夹, 还是直接将文件生成在目标目录[destination]下
     pub init: bool,

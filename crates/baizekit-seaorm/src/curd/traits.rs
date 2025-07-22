@@ -1,9 +1,10 @@
+use derive_more::From;
 use futures_util::stream::BoxStream;
 
 use crate::curd::transaction::Transaction;
 
 /// 分页参数
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, From)]
 pub enum Pagination {
     /// 偏移分页 (页码，每页大小)
     Offset(u64, u64),
@@ -14,14 +15,6 @@ pub enum Pagination {
 impl Pagination {
     pub fn offset(offset: u64, limit: u64) -> Self {
         Self::Offset(offset, limit)
-    }
-
-    pub fn offset_tuple((offset, limit): (u64, u64)) -> Self {
-        Self::Offset(offset, limit)
-    }
-
-    pub fn cursor(cursor: u64) -> Self {
-        Self::Cursor(cursor)
     }
 }
 

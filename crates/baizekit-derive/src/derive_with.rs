@@ -33,15 +33,15 @@ pub fn derive_with_impl(input: Input) -> Result<TokenStream2, darling::Error> {
 
         if is_option_type {
             quote! {
-                pub fn #function_name(mut self, value: #arg_ty) -> Self {
-                    self.#field_ident = Some(value);
+                pub fn #function_name(mut self, value: impl Into<#arg_ty>) -> Self {
+                    self.#field_ident = Some(value.into());
                     self
                 }
             }
         } else {
             quote! {
-                pub fn #function_name(mut self, value: #arg_ty) -> Self {
-                    self.#field_ident = value;
+                pub fn #function_name(mut self, value: impl Into<#arg_ty>) -> Self {
+                    self.#field_ident = value.into();
                     self
                 }
             }
