@@ -63,27 +63,6 @@ fn process_syntax_tree(syntax: &syn::File, module: &str, table_infos: &mut Vec<T
     }
 }
 
-/// 检查并提取单个语法项中的表信息
-fn check_and_extract_table(item: &Item, module: &str, table_infos: &mut Vec<TableInfo>) {
-    if let Item::Enum(enum_item) = item {
-        // 检查是否派生了DeriveIden
-        if !has_derive_iden(&enum_item.attrs) {
-            return;
-        }
-
-        let enum_name = enum_item.ident.to_string();
-
-        // 提取表名
-        if let Some(table_name) = extract_table_name_from_variants(&enum_item.variants) {
-            table_infos.push(TableInfo {
-                module: module.to_string(),
-                enum_name,
-                table_name,
-            });
-        }
-    }
-}
-
 /// 检查是否有DeriveIden派生
 fn has_derive_iden(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| {
@@ -108,17 +87,43 @@ fn has_derive_iden(attrs: &[Attribute]) -> bool {
     })
 }
 
+
+// 将驼峰式命名转换为蛇形命名（例如AccountUser → account_user）
+fn camel_to_snake_case(s: &str) -> String {
+    if s.is_empty() {
+        return s.to_string();
+    }
+    let mut result = String::with_capacity(s.len() + 4); // 预分配空间
+    let mut chars = s.chars();
+    // 处理第一个字符（转为小写）
+    if let Some(c) = chars.next() {
+        result.push(c.to_ascii_lowercase());
+    }
+    // 处理剩余字符：大写字母前加下划线并转为小写，其他字符直接添加
+    for c in chars {
+        if c.is_ascii_uppercase() {
+            result.push('_');
+            result.push(c.to_ascii_lowercase());
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
 /// 从枚举变体中提取表名（适配syn 2.0+）
-fn extract_table_name_from_variants(variants: &syn::punctuated::Punctuated<Variant, syn::Token![,]>) -> Option<String> {
+// 修改extract_table_name_from_variants函数的返回值
+// 现在返回Option<Option<String>>：
+// - Some(Some(name))：找到Table变体且有iden属性
+// - Some(None)：找到Table变体但无iden属性
+// - None：未找到Table变体
+fn extract_table_name_from_variants(variants: &syn::punctuated::Punctuated<Variant, syn::Token![,]>) -> Option<Option<String>> {
     for variant in variants {
-        // 查找名为Table的变体
         if variant.ident == "Table" {
             // 检查是否有sea_orm(iden = "...")属性
             for attr in &variant.attrs {
                 if attr.path().is_ident("sea_orm") {
-                    // 解析sea_orm属性内容
                     if let Meta::List(list) = &attr.meta {
-                        // 迭代处理嵌套元数据
                         let mut table_name = None;
                         let _ = list.parse_nested_meta(|meta| {
                             if meta.path.is_ident("iden") {
@@ -130,16 +135,51 @@ fn extract_table_name_from_variants(variants: &syn::punctuated::Punctuated<Varia
                             }
                             Ok(())
                         });
-
-                        if table_name.is_some() {
-                            return table_name;
+                        if let Some(name) = table_name {
+                            return Some(Some(name)); // 有iden属性，返回指定名称
                         }
                     }
                 }
             }
+            return Some(None); // 找到Table变体但无iden属性
         }
     }
-    None
+    None // 未找到Table变体
+}
+
+// 修改：在无iden属性时使用蛇形命名
+fn check_and_extract_table(item: &Item, module: &str, table_infos: &mut Vec<TableInfo>) {
+    if let Item::Enum(enum_item) = item {
+        if !has_derive_iden(&enum_item.attrs) {
+            return;
+        }
+
+        let enum_name = enum_item.ident.to_string(); // 枚举名称（如AccountUser）
+
+        match extract_table_name_from_variants(&enum_item.variants) {
+            Some(Some(table_name)) => {
+                // 情况1：有iden属性，优先使用
+                table_infos.push(TableInfo {
+                    module: module.to_string(),
+                    enum_name: enum_name.clone(),
+                    table_name,
+                });
+            }
+            Some(None) => {
+                // 情况2：无iden属性，转换为蛇形命名
+                let table_name = camel_to_snake_case(&enum_name);
+                table_infos.push(TableInfo {
+                    module: module.to_string(),
+                    enum_name: enum_name.clone(),
+                    table_name,
+                });
+            }
+            None => {
+                // 情况3：无Table变体，忽略
+                return;
+            }
+        }
+    }
 }
 
 /// 将文件路径转换为模块路径
@@ -201,5 +241,26 @@ mod tests {
             file_path_to_mod_path(&test_file, &src_root),
             Some("crate::models::account".to_string())
         );
+    }
+
+    #[test]
+    fn test_extract_table_name_without_iden() {
+        // 测试无iden属性的情况
+        let code = r#"
+        #[derive(DeriveIden)]
+        pub(crate) enum Account {
+            Table, // 无iden属性
+            ID,
+            Name,
+        }
+    "#;
+
+        let syntax = parse_file(code).unwrap();
+        let mut table_infos = Vec::new();
+        process_syntax_tree(&syntax, "crate::test", &mut table_infos);
+
+        assert_eq!(table_infos.len(), 1);
+        assert_eq!(table_infos[0].table_name, "account"); // 枚举名转小写
+        assert_eq!(table_infos[0].enum_name, "Account");
     }
 }
