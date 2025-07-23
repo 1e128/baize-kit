@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
-use std::{env, fs};
+use std::path::{Path};
+use std::{env};
 
 use clap::Parser;
 use dotenvy::dotenv;
@@ -36,43 +36,6 @@ pub async fn confirm_action(prompt: &str) -> bool {
     }
 }
 
-pub fn get_cargo_project_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    // 获取 CARGO_MANIFEST_DIR 环境变量
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR").map_err(|_| "未设置 CARGO_MANIFEST_DIR 环境变量")?;
-
-    let mut current_dir = PathBuf::from(&manifest_dir);
-
-    // 循环向上查找，直到根目录
-    loop {
-        let cargo_toml_path = current_dir.join("Cargo.toml");
-
-        // 检查是否存在 Cargo.toml 文件
-        if cargo_toml_path.exists() {
-            // 读取文件内容并检查是否包含 [workspace]
-            if let Ok(content) = fs::read_to_string(&cargo_toml_path) {
-                if content.contains("[workspace]") {
-                    return Ok(current_dir);
-                }
-            }
-        }
-
-        // 尝试向上一级目录移动
-        let parent = match current_dir.parent() {
-            Some(p) => p,
-            None => break, // 已经到达根目录
-        };
-
-        // 如果无法再向上移动，说明当前目录就是项目根目录
-        if parent == current_dir {
-            break;
-        }
-
-        current_dir = parent.to_path_buf();
-    }
-
-    // 如果没有找到工作区，返回原始的 manifest 目录作为项目根目录
-    Ok(PathBuf::from(manifest_dir))
-}
 
 pub async fn generate_entities(args: &str, migration_tables: Vec<String>, entities_out_path: &Path) {
     dotenv().ok();
