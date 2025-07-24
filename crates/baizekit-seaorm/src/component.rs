@@ -16,7 +16,10 @@ pub struct DbComponent {
 }
 
 impl DbComponent {
-    pub fn new<'a>(ctx: &'a ComponentContext<'a>) -> Pin<Box<dyn Future<Output = anyhow::Result<Self>> + Send + 'a>> {
+    pub fn new<'a>(
+        ctx: &'a ComponentContext<'a>,
+        label: &str,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<Self>> + Send + 'a>> {
         Box::pin(async move {
             let conf = ctx.config();
             let db_conf: connection::Config = conf.get("db")?;

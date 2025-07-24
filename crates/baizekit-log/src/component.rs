@@ -16,7 +16,8 @@ pub struct LogComponent {
 }
 
 impl LogComponent {
-    pub fn new<'a>(ctx: &'a ComponentContext<'a>) -> Pin<Box<dyn Future<Output = anyhow::Result<Self>> + Send + 'a>> {
+    pub fn new<'a>(ctx: &'a ComponentContext<'a>, label: &str) -> Pin<Box<dyn Future<Output =
+    anyhow::Result<Self>> + Send + 'a>> {
         Box::pin(async move {
             let conf = ctx.config();
             let conf: LogConfig = conf.get("log")?;

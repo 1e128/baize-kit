@@ -9,7 +9,9 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock as StdRwLock};
+use std::time::Duration;
 use tokio::sync::RwLock;
+use tokio::time::sleep;
 use tracing::{info, trace};
 
 use crate::command::{Cli, EmptyCommand};
@@ -54,6 +56,20 @@ impl<'a> ComponentContext<'a> {
         let key = ComponentKey { type_id, label };
 
         self.components.get(&key)?.as_any().downcast_ref::<C>()
+    }
+
+    pub fn must_get_component<C: DynComponent + 'static>(&self, label: Option<&str>) -> anyhow::Result<&C> {
+        let type_id = TypeId::of::<C>();
+        let type_name = std::any::type_name::<C>();
+        let label = label.unwrap_or("default").to_string();
+        let key = ComponentKey { type_id, label: label.clone() };
+
+        self.components
+            .get(&key)
+            .ok_or_else(|| anyhow::anyhow!("component not found: type_name={:?}, label={}", type_name, label))?
+            .as_any()
+            .downcast_ref::<C>()
+            .ok_or_else(|| anyhow::anyhow!("component type mismatch for label: {}", label))
     }
 
     /// 通过闭包使用组件不可变引用
@@ -124,7 +140,10 @@ impl<T: Subcommand + Clone + 'static> App<T> {
     pub fn register_component_factory<Comp, F>(&self, label: Option<impl Into<String>>, factory: F) -> &Self
     where
         Comp: DynComponent + 'static,
-        F: for<'a> Fn(&'a ComponentContext<'a>) -> Pin<Box<dyn Future<Output = anyhow::Result<Comp>> + Send + 'a>>
+        F: for<'a> Fn(
+                &'a ComponentContext<'a>,
+                &str,
+            ) -> Pin<Box<dyn Future<Output = anyhow::Result<Comp>> + Send + 'a>>
             + Send
             + Sync
             + 'static,
@@ -139,12 +158,14 @@ impl<T: Subcommand + Clone + 'static> App<T> {
         }
 
         let factory_arc = Arc::new(factory);
+        let factory_label = key.label.clone();
         // 内部自动将用户提供的Future装箱并转换为DynComponent
         let factory_boxed: ComponentFactory = Box::new(move |ctx: &ComponentContext| {
             let factory = Arc::clone(&factory_arc);
+            let label = factory_label.clone();
             Box::pin(async move {
-                // 调用用户提供的工厂函数获取组件
-                let comp = factory(ctx).await?;
+                // 调用用户提供的工厂函数获取组件，传入label参数
+                let comp = factory(ctx, &label).await?;
                 // 转换为动态类型
                 Ok(Box::new(comp) as Box<dyn DynComponent>)
             })
@@ -218,7 +239,7 @@ impl<T: Subcommand + Clone + 'static> App<T> {
         let (init_strategy, execute_future) = match &cli.command {
             Some(command) => {
                 let handler = self.command_handler.lock().unwrap();
-                let handler = handler.as_ref().context("未注册命令处理器")?;
+                let handler = handler.as_ref().context("handler not registered")?;
                 handler(command.clone(), self)
             }
             None => {
@@ -250,7 +271,9 @@ impl<T: Subcommand + Clone + 'static> App<T> {
             }
         };
 
-        self.init_components_with_strategy(init_strategy).await.context("init component failed")?;
+        self.init_components_with_strategy(init_strategy)
+            .await
+            .context("init component failed")?;
         execute_future.await?;
         let wait_signal = self.wait_signal.read().unwrap();
         if *wait_signal {
@@ -259,7 +282,8 @@ impl<T: Subcommand + Clone + 'static> App<T> {
             info!("收到ctrl+c信号，正在关闭应用...");
         }
         self.shutdown_components().await.context("shutdown component failed")?;
-        info!("应用已关闭");
+        println!("应用已退出");
+        sleep(Duration::from_millis(100)).await;
 
         Ok(())
     }
@@ -293,15 +317,17 @@ impl<T: Subcommand + Clone + 'static> App<T> {
         for (key, factory) in &filtered_factories {
             let context = ComponentContext { config: &config, components: &components };
             let component = (*factory)(&context).await?;
+            let type_name = component.type_name();
             components.insert(key.clone(), component);
-            info!("[创建组件成功] 类型:{:?}, 标签:{}", key.type_id, key.label);
+            info!(com = type_name, label = key.label, "创建组件成功");
         }
 
         // 阶段2: 按注册顺序调用init方法
         for (key, _) in &filtered_factories {
             let component = components.get_mut(key).unwrap();
+            let type_name = component.type_name();
             component.init(&config, &key.label).await?;
-            info!("[初始化组件成功] 类型: {:?}, 标签: {}", key.type_id, key.label);
+            info!(com = type_name, label = key.label, "初始化组件成功");
         }
 
         *self.components.write().await = components;
@@ -316,8 +342,9 @@ impl<T: Subcommand + Clone + 'static> App<T> {
 
         for key in component_keys {
             if let Some(component) = components.get_mut(&key) {
+                let type_name = component.type_name();
                 component.shutdown().await?;
-                info!("[关闭组件成功] 类型: {:?}, 标签: {}", key.type_id, key.label);
+                info!(com = type_name, label = key.label, "关闭组件成功");
             }
         }
         components.clear();
@@ -329,11 +356,11 @@ impl<T: Subcommand + Clone + 'static> App<T> {
         let mut config_builder = Config::builder();
 
         if let Some(path) = config_path {
-            let path = fs::canonicalize(path).unwrap_or_else(|e| panic!("配置文件加载失败：{} - {:?}", e, path));
+            let path = fs::canonicalize(path).unwrap_or_else(|e| panic!("load config file failed: {} - {:?}", e, path));
             config_builder = config_builder.add_source(File::from(path.clone()));
         }
 
-        let config = config_builder.build().context("配置文件加载失败")?;
+        let config = config_builder.build().context("load config file failed")?;
 
         *self.config.write().await = config;
         Ok(())
