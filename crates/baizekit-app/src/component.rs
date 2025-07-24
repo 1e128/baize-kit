@@ -1,6 +1,6 @@
 use std::any::Any;
-use std::pin::Pin;
 use std::future::Future;
+use std::pin::Pin;
 
 use async_trait::async_trait;
 use config::Config;
@@ -42,10 +42,34 @@ impl<T: Component + Any + Send + Sync + 'static> DynComponent for T {
     }
 }
 
-// 组件工厂类型定义（内部自动处理Future装箱）
-pub type ComponentFactory = Box<
-    dyn for<'a> Fn(&'a ComponentContext<'a>) -> Pin<Box<dyn Future<Output = anyhow::Result<Box<dyn DynComponent>>> + Send + 'a>>
-    + Send
-    + Sync
-    + 'static,
->;
+// 新的组件工厂 trait
+#[async_trait]
+pub trait AnyComponentFactory: Send + Sync + 'static {
+    // This method will create the concrete component and box it as DynComponent
+    async fn create(&self, ctx: &ComponentContext<'_>, label: &str) -> anyhow::Result<Box<dyn DynComponent>>;
+}
+
+// Type alias for the specific function signature accepted by the factory
+pub type ComponentFactoryFn<Comp> =
+    for<'a> fn(&'a ComponentContext<'a>, &str) -> Pin<Box<dyn Future<Output = anyhow::Result<Comp>> + Send + 'a>>;
+
+// Generic implementation for any Fn that can act as a factory
+#[async_trait]
+impl<Comp, F> AnyComponentFactory for F
+where
+    Comp: DynComponent + 'static,
+    F: for<'a> Fn(&'a ComponentContext<'a>, &str) -> Pin<Box<dyn Future<Output = anyhow::Result<Comp>> + Send + 'a>>
+        + Send
+        + Sync
+        + 'static,
+{
+    async fn create(&self, ctx: &ComponentContext<'_>, label: &str) -> anyhow::Result<Box<dyn DynComponent>> {
+        // Call the user-provided factory function
+        let comp = self(ctx, label).await?;
+        // Convert to dynamic type
+        Ok(Box::new(comp) as Box<dyn DynComponent>)
+    }
+}
+
+// ComponentFactory type alias to be used in App
+pub type ComponentFactory = Box<dyn AnyComponentFactory>;

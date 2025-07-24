@@ -26,6 +26,8 @@ sea-orm = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+clap = { workspace = true , features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 
 
 [features]

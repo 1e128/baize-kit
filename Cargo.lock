@@ -485,7 +485,9 @@ dependencies = [
  "baizekit-redis",
  "baizekit-seaorm",
  "baizekit-serde",
+ "clap",
  "sea-orm",
+ "serde",
  "tokio",
  "tracing",
 ]
