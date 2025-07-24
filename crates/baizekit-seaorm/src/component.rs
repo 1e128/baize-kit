@@ -2,14 +2,13 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use crate::connection;
+use baizekit_app::anyhow;
 use baizekit_app::application::ComponentContext;
 use baizekit_app::async_trait::async_trait;
 use baizekit_app::component::Component;
-use baizekit_app::error::{ConfigSnafu, InternalSnafu, Result, ResultExt};
 use sea_orm::{Database, DatabaseConnection};
 use tracing::info;
-
-use crate::connection;
 
 pub struct DbComponent {
     pub db: Arc<DatabaseConnection>,
@@ -17,40 +16,31 @@ pub struct DbComponent {
 }
 
 impl DbComponent {
-    pub fn new<'a>(ctx: &'a ComponentContext<'a>) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>> {
+    pub fn new<'a>(ctx: &'a ComponentContext<'a>) -> Pin<Box<dyn Future<Output = anyhow::Result<Self>> + Send + 'a>> {
         Box::pin(async move {
             let conf = ctx.config();
-            let db_conf: connection::Config = conf.get("db").context(ConfigSnafu)?;
+            let db_conf: connection::Config = conf.get("db")?;
             info!(dsn_url = db_conf.url, search_path = ?db_conf.schema, "连接数据库");
-            let db = Database::connect(db_conf)
-                .await
-                .map(Arc::new)
-                .map_err(|err| InternalSnafu { message: err.to_string() }.build())?;
+            let db = Database::connect(db_conf).await.map(Arc::new)?;
             Ok(DbComponent { db, connections: Default::default() })
         })
     }
 
     pub fn new_multi_connections<'a>(
         ctx: &'a ComponentContext<'a>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<Self>> + Send + 'a>> {
         Box::pin(async move {
             let conf = ctx.config();
 
             // 默认数据库连接
-            let db_conf: connection::Config = conf.get("db").context(ConfigSnafu)?;
-            let db = Database::connect(db_conf)
-                .await
-                .map(Arc::new)
-                .map_err(|err| InternalSnafu { message: err.to_string() }.build())?;
+            let db_conf: connection::Config = conf.get("db")?;
+            let db = Database::connect(db_conf).await.map(Arc::new)?;
 
             // 带有label信息的数据库连接
             let mut connections = HashMap::new();
-            let db_confs: HashMap<String, connection::Config> = conf.get("dbs").context(ConfigSnafu)?;
+            let db_confs: HashMap<String, connection::Config> = conf.get("dbs")?;
             for (label, db_conf) in db_confs {
-                let db = Database::connect(db_conf)
-                    .await
-                    .map(Arc::new)
-                    .map_err(|err| InternalSnafu { message: err.to_string() }.build())?;
+                let db = Database::connect(db_conf).await.map(Arc::new)?;
                 connections.insert(label, db);
             }
 

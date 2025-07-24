@@ -5,16 +5,15 @@ use async_trait::async_trait;
 use config::Config;
 
 use crate::application::ComponentContext;
-use crate::error::Result;
 
 // 组件接口
 #[async_trait]
 pub trait Component: Send + Sync + 'static {
-    async fn init(&mut self, _config: &Config, _label: &str) -> Result<()> {
+    async fn init(&mut self, _config: &Config, _label: &str) -> anyhow::Result<()> {
         Ok(())
     }
 
-    async fn shutdown(&mut self) -> Result<()> {
+    async fn shutdown(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -37,7 +36,8 @@ impl<T: Component + Any + Send + Sync + 'static> DynComponent for T {
 
 // 组件工厂类型定义（内部自动处理Future装箱）
 pub type ComponentFactory = Box<
-    dyn for<'a> Fn(&'a ComponentContext<'a>) -> Pin<Box<dyn Future<Output = Result<Box<dyn DynComponent>>> + Send + 'a>>
+    dyn for<'a> Fn(&'a ComponentContext<'a>) -> Pin<Box<dyn Future<Output = anyhow::Result<Box<dyn 
+    DynComponent>>> + Send + 'a>>
         + Send
         + Sync
         + 'static,

@@ -1,15 +1,13 @@
 pub mod application;
 pub mod command;
 pub mod component;
-pub mod error;
 pub mod signal;
 pub mod version;
-pub use {async_trait, config, vergen_pretty};
+pub use {anyhow, async_trait, config, vergen_pretty};
 
 #[macro_export]
 macro_rules! new_app {
     (@common) => {
-        // 定义版本打印闭包（公共逻辑）
         let printer = || {
             use $crate::vergen_pretty::{header, vergen_pretty_env, ConfigBuilder};
 
@@ -29,7 +27,6 @@ macro_rules! new_app {
                 });
         };
 
-        // 设置全局变量（公共逻辑）
         if let Err(_) = $crate::version::GLOBAL_VERSION_PRINTER.set(printer) {
             eprintln!("Error: Version printer already initialized!");
             eprintln!("Ensure you only call new_app!() once.");

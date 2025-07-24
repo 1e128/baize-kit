@@ -1,15 +1,14 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use baizekit_app::application::ComponentContext;
-use baizekit_app::async_trait::async_trait;
-use baizekit_app::component::Component;
-use baizekit_app::error::{ConfigSnafu, Result, ResultExt};
-use tracing_appender::non_blocking::WorkerGuard;
-
 use crate::config::LogConfig;
 use crate::format::LogFormat;
 use crate::timer::LocalTimer;
+use baizekit_app::anyhow;
+use baizekit_app::application::ComponentContext;
+use baizekit_app::async_trait::async_trait;
+use baizekit_app::component::Component;
+use tracing_appender::non_blocking::WorkerGuard;
 
 pub struct LogComponent {
     #[allow(unused)]
@@ -17,10 +16,10 @@ pub struct LogComponent {
 }
 
 impl LogComponent {
-    pub fn new<'a>(ctx: &'a ComponentContext<'a>) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>> {
+    pub fn new<'a>(ctx: &'a ComponentContext<'a>) -> Pin<Box<dyn Future<Output = anyhow::Result<Self>> + Send + 'a>> {
         Box::pin(async move {
             let conf = ctx.config();
-            let conf: LogConfig = conf.get("log").context(ConfigSnafu)?;
+            let conf: LogConfig = conf.get("log")?;
 
             let (non_blocking, guard) = tracing_appender::non_blocking(std::io::stdout());
 

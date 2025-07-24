@@ -24,6 +24,9 @@ baizekit-serde = { workspace = true }
 tracing = { workspace = true }
 sea-orm = { workspace = true }
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+
 
 [features]
 version = [

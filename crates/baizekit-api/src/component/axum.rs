@@ -9,7 +9,6 @@ use baizekit_app::application::ComponentContext;
 use baizekit_app::async_trait::async_trait;
 use baizekit_app::component::Component;
 use baizekit_app::config::Config;
-use baizekit_app::error::{ConfigSnafu, InternalSnafu, Result, ResultExt};
 use serde::Deserialize;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
@@ -21,6 +20,8 @@ use tracing::{info, Level, Span};
 use utoipa::openapi::path::Operation;
 use utoipa::openapi::{Info, OpenApi, Paths};
 use utoipa_swagger_ui::SwaggerUi;
+use baizekit_app::anyhow;
+use baizekit_app::anyhow::Context;
 
 pub struct AxumServiceInfo {
     pub path: String,
@@ -58,7 +59,7 @@ impl AxumComponent {
     pub fn new<'a>(
         _ctx: &'a ComponentContext<'a>,
         services: Vec<AxumServiceInfo>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<Self>> + Send + 'a>> {
         Box::pin(async move {
             let shutdown_token = CancellationToken::new();
 
@@ -100,13 +101,12 @@ impl AxumComponent {
 
 #[async_trait]
 impl Component for AxumComponent {
-    async fn init(&mut self, config: &Config, label: &str) -> Result<()> {
-        let conf: AxumComponentConfig = config.get("server").context(ConfigSnafu)?;
+    async fn init(&mut self, config: &Config, label: &str) -> anyhow::Result<()> {
+        let conf: AxumComponentConfig = config.get("server")?;
 
         // 绑定地址
         let listener = TcpListener::bind(conf.socket_addr())
-            .await
-            .map_err(|err| InternalSnafu { message: format!("listener bind failed. err: {err}") }.build())?;
+            .await.context("listener bind failed.")?;
         info!("[{}] Axum服务器绑定到: {}", label, conf.socket_addr());
 
         self.print_service_info();
@@ -155,7 +155,7 @@ impl Component for AxumComponent {
         Ok(())
     }
 
-    async fn shutdown(&mut self) -> Result<()> {
+    async fn shutdown(&mut self) -> anyhow::Result<()> {
         info!("收到关闭信号，通知Axum服务器关闭...");
         // 发送关闭通知
         self.shutdown_trigger.cancel();
