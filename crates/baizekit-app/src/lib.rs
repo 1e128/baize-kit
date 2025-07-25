@@ -3,6 +3,8 @@ pub mod command;
 pub mod component;
 pub mod signal;
 pub mod version;
+pub mod component_factory;
+
 pub use {anyhow, async_trait, config, vergen_pretty};
 
 #[macro_export]

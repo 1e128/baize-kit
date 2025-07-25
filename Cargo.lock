@@ -520,6 +520,7 @@ name = "baizekit-app"
 version = "0.1.23"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "async-trait",
  "clap",
  "config",

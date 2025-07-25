@@ -1,12 +1,12 @@
 use baizekit::app::anyhow;
 use baizekit::app::anyhow::Context;
 use baizekit::app::async_trait::async_trait;
-use baizekit_app::application::{ComponentContext, ComponentKey, InitStrategy};
+use baizekit_app::application::{ApplicationInner, ComponentKey, InitStrategy};
 use baizekit_app::component::Component;
 use clap::Subcommand;
 use serde::Deserialize;
-use std::any::{TypeId};
-use std::pin::Pin;
+use std::any::TypeId;
+use std::sync::Arc;
 use tracing::info;
 
 // 定义子命令
@@ -27,41 +27,31 @@ async fn main() -> anyhow::Result<()> {
         .register_component_factory(None::<&str>, LogComponent::new)
         .register_component_factory(None::<&str>, DbComponent::new)
         .register_component_factory(None::<&str>, AxumComponent::new) // 注册 AxumComponent
-        .set_default_handler(|_app| {
-            let fut = Box::pin(async {
+        .set_default_handler(|_app, _factories| {
+            let fut = async {
                 info!("Default handler executed.");
                 Ok(())
-            });
+            };
             let inits = vec![ComponentKey { type_id: TypeId::of::<LogComponent>(), label: "default".to_string() }];
             (InitStrategy::Only(inits), fut)
         })
-        .register_command_handler(|command, app| {
+        .register_command_handler(|command, app, _factories| {
             // 注册命令处理器
-            let fut: Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>> = Box::pin(async move {
+            let fut = async move {
                 match command {
                     Commands::Serve => {
                         info!("Serving Axum application...");
                         // 在这里可以启动 Axum 服务器
-                        app.with_component::<AxumComponent, _>(None, |axum_comp| {
-                            info!("Axum server will run on port: {}", axum_comp.port());
-                        })
-                        .await
-                        .context("AxumComponent not found")?;
-                        // 模拟服务器运行，等待关闭信号
-                        info!("Axum server shutting down.");
+                        let axum = app.must_get_component::<AxumComponent>(None::<&str>).await?;
+                        let axum = Arc::downcast::<AxumComponent>(axum);
                     }
                     Commands::PrintPort => {
                         //这里让app不要等待关闭信号
                         app.set_wait_signal(false);
-                        app.with_component::<AxumComponent, _>(None, |axum_comp| {
-                            println!("Axum server port: {}", axum_comp.port());
-                        })
-                        .await
-                        .context("AxumComponent not found")?;
                     }
                 }
                 Ok(())
-            });
+            };
             (InitStrategy::All, fut)
         })
         .run()
@@ -78,15 +68,10 @@ pub struct AxumComponent {
 }
 
 impl AxumComponent {
-    pub fn new<'a>(
-        ctx: &'a ComponentContext<'a>,
-        label: &str,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<Self>> + Send + 'a>> {
-        Box::pin(async move {
-            let config: AxumConfig = ctx.config().get("server").context("Failed to get server config")?;
-            info!("AxumComponent new with config: {:?}", config);
-            Ok(AxumComponent { config })
-        })
+    pub async fn new(ctx: Arc<ApplicationInner>, label: String) -> anyhow::Result<Self> {
+        let config: AxumConfig = ctx.config().await.get("server").context("Failed to get server config")?;
+        info!("AxumComponent new with config: {:?}", config);
+        Ok(AxumComponent { config })
     }
 
     pub fn port(&self) -> u16 {

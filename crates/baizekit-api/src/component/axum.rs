@@ -1,11 +1,9 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::pin::Pin;
 
 use axum::body::Body;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use axum::http::{Method, Request};
 use axum::Router;
-use baizekit_app::application::ComponentContext;
 use baizekit_app::async_trait::async_trait;
 use baizekit_app::component::Component;
 use baizekit_app::config::Config;
@@ -56,27 +54,24 @@ pub struct AxumComponent {
 }
 
 impl AxumComponent {
-    pub fn new<'a>(
-        _ctx: &'a ComponentContext<'a>,
+    pub async fn new(
         services: Vec<AxumServiceInfo>,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<Self>> + Send + 'a>> {
-        Box::pin(async move {
-            let shutdown_token = CancellationToken::new();
+    ) -> anyhow::Result<Self> {
+        let shutdown_token = CancellationToken::new();
 
-            let mut router = Router::new();
-            let mut openapi = OpenApi::new(Info::new("App", "0.1.0"), Paths::new());
+        let mut router = Router::new();
+        let mut openapi = OpenApi::new(Info::new("App", "0.1.0"), Paths::new());
 
-            for info in services {
-                router = router.nest(&info.path, info.router);
-                openapi = openapi.nest(&info.path, info.openapi);
-            }
+        for info in services {
+            router = router.nest(&info.path, info.router);
+            openapi = openapi.nest(&info.path, info.openapi);
+        }
 
-            Ok(AxumComponent {
-                router,
-                openapi,
-                shutdown_trigger: shutdown_token.child_token(),
-                shutdown_done: shutdown_token,
-            })
+        Ok(AxumComponent {
+            router,
+            openapi,
+            shutdown_trigger: shutdown_token.child_token(),
+            shutdown_done: shutdown_token,
         })
     }
 
@@ -101,7 +96,7 @@ impl AxumComponent {
 
 #[async_trait]
 impl Component for AxumComponent {
-    async fn init(&mut self, config: &Config, label: &str) -> anyhow::Result<()> {
+    async fn init(&self, config: &Config, label: String) -> anyhow::Result<()> {
         let conf: AxumComponentConfig = config.get("server")?;
 
         // 绑定地址
@@ -155,7 +150,7 @@ impl Component for AxumComponent {
         Ok(())
     }
 
-    async fn shutdown(&mut self) -> anyhow::Result<()> {
+    async fn shutdown(&self) -> anyhow::Result<()> {
         info!("收到关闭信号，通知Axum服务器关闭...");
         // 发送关闭通知
         self.shutdown_trigger.cancel();

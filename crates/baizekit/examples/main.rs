@@ -11,11 +11,11 @@ async fn main() -> anyhow::Result<()> {
     new_app!()
         .register_component_factory(None::<&str>, LogComponent::new)
         .register_component_factory(None::<&str>, DbComponent::new)
-        .set_default_handler(|_app| {
-            let fut= Box::pin(async {
+        .set_default_handler(|_app, _| {
+            let fut = async {
                 info!("Default handler executed.");
                 Ok(())
-            });
+            };
             (
                 InitStrategy::Deny(vec![ComponentKey {
                     type_id: TypeId::of::<DbComponent>(),

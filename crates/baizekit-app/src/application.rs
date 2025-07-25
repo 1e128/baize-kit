@@ -1,3 +1,8 @@
+use super::command::{Cli, EmptyCommand};
+use super::component::DynComponent;
+use super::component_factory::ComponentFactoryManager;
+use super::signal::shutdown_signal;
+use super::version::GLOBAL_VERSION_PRINTER;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use config::{Config, File};
@@ -8,80 +13,70 @@ use std::future::Future;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::pin::Pin;
-use std::sync::{Mutex, RwLock as StdRwLock};
+use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 use tracing::info;
 
-use crate::command::{Cli, EmptyCommand};
-use crate::component::{ComponentFactory, DynComponent};
-use crate::signal::shutdown_signal;
-use crate::version::GLOBAL_VERSION_PRINTER;
-
-// 定义命令处理器类型别名
-type CommandHandler<T> = Box<
-    dyn Fn(T, &App<T>) -> (InitStrategy, Pin<Box<dyn Future<Output = Result<()>> + Send + '_>>) + Send + Sync + 'static,
->;
-
-// 定义默认处理器类型别名
-type DefaultHandler<T> = Box<
-    dyn Fn(&App<T>) -> (InitStrategy, Pin<Box<dyn Future<Output = Result<()>> + Send + '_>>) + Send + Sync + 'static,
->;
-
-// 组件唯一标识键
+/// 组件唯一标识键，由类型 ID 和标签组成
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComponentKey {
     pub type_id: TypeId,
     pub label: String,
 }
 
-// 组件工厂上下文
-pub struct ComponentContext<'a> {
-    pub config: &'a Config,
-    pub components: &'a HashMap<ComponentKey, Box<dyn DynComponent>>,
+/// 应用内部状态
+#[derive(Default)]
+pub struct ApplicationInner {
+    config: RwLock<Config>,
+    components: RwLock<HashMap<ComponentKey, Arc<dyn DynComponent>>>,
+    wait_signal: StdRwLock<bool>,
 }
 
-impl<'a> ComponentContext<'a> {
-    /// 查找组件（返回不可变引用）
-    pub fn get_component<C: DynComponent + 'static>(&self, label: Option<&str>) -> Option<&C> {
+impl ApplicationInner {
+    /// 获取组件（返回 Option<Arc<dyn DynComponent>>）
+    pub async fn get_component<C: DynComponent + 'static>(&self, label: Option<&str>) -> Option<Arc<dyn DynComponent>> {
         let type_id = TypeId::of::<C>();
         let label = label.unwrap_or("default").to_string();
         let key = ComponentKey { type_id, label };
-
-        self.components.get(&key)?.as_any().downcast_ref::<C>()
+        let components = self.components.read().await;
+        components.get(&key).cloned()
     }
 
-    pub fn must_get_component<C: DynComponent + 'static>(&self, label: Option<&str>) -> Result<&C> {
+    /// 强制获取组件（返回 Result<Arc<dyn DynComponent>>）
+    pub async fn must_get_component<C: DynComponent + 'static>(
+        &self,
+        label: Option<&str>,
+    ) -> Result<Arc<dyn DynComponent>> {
         let type_id = TypeId::of::<C>();
         let type_name = std::any::type_name::<C>();
         let label = label.unwrap_or("default").to_string();
         let key = ComponentKey { type_id, label: label.clone() };
-
-        self.components
+        let components = self.components.read().await;
+        components
             .get(&key)
-            .ok_or_else(|| anyhow::anyhow!("component not found: type_name={:?}, label={}", type_name, label))?
-            .as_any()
-            .downcast_ref::<C>()
-            .ok_or_else(|| anyhow::anyhow!("component type mismatch for label: {}", label))
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("component not found: type={:?}, label={}", type_name, label))
     }
 
-    /// 通过闭包使用组件不可变引用
-    pub fn with_component<C: DynComponent + 'static, R>(
-        &self,
-        label: Option<&str>,
-        f: impl FnOnce(&C) -> R,
-    ) -> Option<R> {
-        let comp = self.get_component::<C>(label)?;
-        Some(f(comp))
+    /// 获取配置（返回读锁 Guard）
+    pub async fn config(&self) -> tokio::sync::RwLockReadGuard<'_, Config> {
+        self.config.read().await
     }
 
-    pub fn config(&self) -> &Config {
-        self.config
+    /// 获取配置可变引用（返回写锁 Guard）
+    pub async fn config_mut(&self) -> tokio::sync::RwLockWriteGuard<'_, Config> {
+        self.config.write().await
+    }
+
+    pub fn set_wait_signal(&self, wait: bool) {
+        let mut wait_signal = self.wait_signal.write().expect("Failed to write wait_signal RwLock");
+        *wait_signal = wait;
     }
 }
 
-// 组件初始化策略
+/// 组件初始化策略
 #[derive(Debug, Clone)]
 pub enum InitStrategy {
     /// 初始化所有组件
@@ -94,152 +89,126 @@ pub enum InitStrategy {
     Deny(Vec<ComponentKey>),
 }
 
-// 应用核心结构
-pub struct App<T: Subcommand + Clone + 'static = EmptyCommand> {
-    default_handler: Mutex<Option<DefaultHandler<T>>>,
-    command_handler: Mutex<Option<CommandHandler<T>>>,
-    component_factories: Mutex<(Vec<(ComponentKey, ComponentFactory)>, HashMap<ComponentKey, ()>)>,
+// 定义通用的处理器Future类型别名，简化重复书写
+type HandlerFuture = Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>;
 
-    components: RwLock<HashMap<ComponentKey, Box<dyn DynComponent>>>,
-    config: RwLock<Config>,
-    wait_signal: StdRwLock<bool>,
+// 命令处理器类型定义（使用别名简化）
+type CommandHandler<T> = Box<
+    dyn Fn(T, Arc<ApplicationInner>, Arc<ComponentFactoryManager>) -> (InitStrategy, HandlerFuture)
+        + Send
+        + Sync
+        + 'static,
+>;
+
+// 默认处理器类型定义（使用别名简化）
+type DefaultHandler = Box<
+    dyn Fn(Arc<ApplicationInner>, Arc<ComponentFactoryManager>) -> (InitStrategy, HandlerFuture)
+        + Send
+        + Sync
+        + 'static,
+>;
+
+/// 应用核心结构
+pub struct App<T: Subcommand + Clone + 'static = EmptyCommand> {
+    default_handler: StdMutex<Option<DefaultHandler>>,
+    command_handler: StdMutex<Option<CommandHandler<T>>>,
+    component_factories: Arc<ComponentFactoryManager>,
+    inner: Arc<ApplicationInner>,
     phantom: PhantomData<T>,
 }
 
 impl<T: Subcommand + Clone + 'static> App<T> {
+    /// 创建新的应用实例
     pub fn new() -> Self {
         Self {
-            command_handler: Mutex::new(None),
-            component_factories: Mutex::new((Vec::new(), HashMap::new())),
-            components: RwLock::new(HashMap::new()),
-            config: RwLock::new(Config::default()),
-            default_handler: Mutex::new(None),
-            wait_signal: StdRwLock::new(true),
+            command_handler: StdMutex::new(None),
+            component_factories: Arc::new(ComponentFactoryManager::new()),
+            inner: Arc::new(ApplicationInner { wait_signal: StdRwLock::new(true), ..ApplicationInner::default() }),
+            default_handler: StdMutex::new(None),
             phantom: PhantomData,
         }
     }
 
-    // 注册命令处理器
-    pub fn register_command_handler<F>(&self, handler: F) -> &Self
+    /// 注册命令处理器
+    pub fn register_command_handler<F, Fut>(&self, handler: F) -> &Self
     where
-        F: Fn(T, &App<T>) -> (InitStrategy, Pin<Box<dyn Future<Output = Result<()>> + Send + '_>>)
-            + Send
-            + Sync
-            + 'static,
+        F: Fn(T, Arc<ApplicationInner>, Arc<ComponentFactoryManager>) -> (InitStrategy, Fut) + Send + Sync + 'static,
+        Fut: Future<Output = Result<()>> + Send + 'static,
     {
+        // 包装处理器，显式转换为动态Future类型
+        let wrapped = move |cmd, inner, factories| {
+            let (strategy, fut) = handler(cmd, inner, factories);
+            (strategy, Box::pin(fut) as HandlerFuture)
+        };
         let mut cmd_handler = self.command_handler.lock().expect("Failed to lock command_handler mutex");
-        *cmd_handler = Some(Box::new(handler) as CommandHandler<T>);
+        *cmd_handler = Some(Box::new(wrapped) as CommandHandler<T>);
         self
     }
 
-    // Simplified register_component_factory
-    pub fn register_component_factory<Comp, F>(&self, label: Option<impl Into<String>>, factory: F) -> &Self
+    /// 注册组件工厂
+    pub fn register_component_factory<Comp, F, Fut>(&self, label: Option<impl Into<String>>, factory: F) -> &Self
     where
         Comp: DynComponent + 'static,
-        F: for<'a> Fn(&'a ComponentContext<'a>, &str) -> Pin<Box<dyn Future<Output = Result<Comp>> + Send + 'a>>
-            + Send
-            + Sync
-            + 'static,
+        F: Fn(Arc<ApplicationInner>, String) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<Comp>> + Send + 'static,
     {
-        let type_id = TypeId::of::<Comp>();
-        let label = label.map_or_else(|| "default".to_string(), |l| l.into());
-        let key = ComponentKey { type_id, label: label.clone() };
-
-        let mut factories = self
-            .component_factories
-            .lock()
-            .expect("Failed to lock component_factories mutex");
-        if factories.1.contains_key(&key) {
-            panic!("component type:{:?}, label:{} already registered!", type_id, key.label);
-        }
-
-        // Box the user-provided factory function as AnyComponentFactory
-        let factory_boxed: ComponentFactory = Box::new(factory);
-
-        factories.0.push((key.clone(), factory_boxed));
-        factories.1.insert(key, ());
+        self.component_factories.register_component_factory(label, factory);
         self
     }
 
-    // 设置默认处理器
-    pub fn set_default_handler<F>(&self, handler: F) -> &Self
+    /// 设置默认处理器
+    pub fn set_default_handler<F, Fut>(&self, handler: F) -> &Self
     where
-        F: Fn(&App<T>) -> (InitStrategy, Pin<Box<dyn Future<Output = Result<()>> + Send + '_>>) + Send + Sync + 'static,
+        F: Fn(Arc<ApplicationInner>, Arc<ComponentFactoryManager>) -> (InitStrategy, Fut) + Send + Sync + 'static,
+        Fut: Future<Output = Result<()>> + Send + 'static,
     {
+        // 包装处理器，显式转换为动态Future类型
+        let wrapped = move |inner, factories| {
+            let (strategy, fut) = handler(inner, factories);
+            (strategy, Box::pin(fut) as HandlerFuture)
+        };
         let mut def_handler = self.default_handler.lock().expect("Failed to lock default_handler mutex");
-        *def_handler = Some(Box::new(handler) as DefaultHandler<T>);
+        *def_handler = Some(Box::new(wrapped) as DefaultHandler);
         self
     }
 
     /// 设置是否等待关闭信号
     pub fn set_wait_signal(&self, wait: bool) -> &Self {
-        let mut wait_signal = self.wait_signal.write().expect("Failed to write wait_signal RwLock");
-        *wait_signal = wait;
+        self.inner.set_wait_signal(wait);
         self
-    }
-
-    /// 通过闭包访问组件的不可变引用
-    pub async fn with_component<C: DynComponent + 'static, R>(
-        &self,
-        label: Option<&str>,
-        f: impl FnOnce(&C) -> R,
-    ) -> Option<R> {
-        let type_id = TypeId::of::<C>();
-        let label = label.unwrap_or("default").to_string();
-        let key = ComponentKey { type_id, label };
-
-        let components = self.components.read().await;
-        let comp = components.get(&key)?.as_any().downcast_ref::<C>()?;
-        Some(f(comp))
-    }
-
-    /// 通过闭包访问组件的可变引用
-    pub async fn with_component_mut<C: DynComponent + 'static, R>(
-        &self,
-        label: Option<&str>,
-        f: impl FnOnce(&mut C) -> R,
-    ) -> Option<R> {
-        let type_id = TypeId::of::<C>();
-        let label = label.unwrap_or("default").to_string();
-        let key = ComponentKey { type_id, label };
-
-        let mut components = self.components.write().await;
-        let comp = components.get_mut(&key)?.as_any_mut().downcast_mut::<C>()?;
-        Some(f(comp))
     }
 
     /// 获取所有已初始化组件的键
     pub async fn get_all_component_keys(&self) -> Vec<ComponentKey> {
-        let components = self.components.read().await;
+        let components = self.inner.components.read().await;
         components.keys().cloned().collect()
     }
 
-    // 应用主入口点
+    /// 应用主入口点
     pub async fn run(&self) -> Result<()> {
         let cli = Cli::<T>::parse();
-        //以后换成config component
         self.load_config(&cli.config).await?;
+        let inner_arc = self.inner.clone();
+        let factories_arc = self.component_factories.clone();
 
+        // 根据命令或默认情况获取处理策略和执行未来
         let (init_strategy, execute_future) = match &cli.command {
             Some(command) => {
                 let handler = self
                     .command_handler
                     .lock()
-                    .map_err(|e| anyhow::anyhow!("get command handler locked failed: {}", e))?;
-                let handler = handler.as_ref().context("handler not registered")?;
-                handler(command.clone(), self)
+                    .map_err(|e| anyhow::anyhow!("get command handler lock failed: {}", e))?;
+                let handler = handler.as_ref().context("command handler not registered")?;
+                handler(command.clone(), inner_arc.clone(), factories_arc.clone())
             }
             None => {
                 let default_handler = self
                     .default_handler
                     .lock()
-                    .map_err(|e| anyhow::anyhow!("get default handler locked failed: {}", e))?;
-                let default_handler = default_handler.as_ref();
+                    .map_err(|e| anyhow::anyhow!("get default handler lock failed: {}", e))?;
                 if cli.version {
                     self.set_wait_signal(false);
-
-                    let fut: Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> = Box::pin(async {
-                        //打印版本信息
+                    let fut: HandlerFuture = Box::pin(async {
                         if let Some(print_version) = GLOBAL_VERSION_PRINTER.get() {
                             print_version();
                         }
@@ -247,46 +216,51 @@ impl<T: Subcommand + Clone + 'static> App<T> {
                     });
                     (InitStrategy::None, fut)
                 } else {
-                    if let Some(handler) = default_handler {
-                        handler(self)
-                    } else {
-                        let fut: Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> = Box::pin(async { Ok(()) });
-                        (InitStrategy::All, fut)
-                    }
+                    default_handler
+                        .as_ref()
+                        .map(|h| h(inner_arc.clone(), factories_arc.clone()))
+                        .unwrap_or_else(|| {
+                            let fut: HandlerFuture = Box::pin(async { Ok(()) });
+                            (InitStrategy::All, fut)
+                        })
                 }
             }
         };
 
+        // 初始化组件
         self.init_components_with_strategy(init_strategy)
             .await
-            .context("init component failed")?;
+            .context("component init failed")?;
+
+        // 执行主逻辑
         execute_future.await?;
+
+        // 处理等待关闭信号
         let wait_signal = self
+            .inner
             .wait_signal
             .read()
-            .map_err(|e| anyhow::anyhow!("Failed to read wait_signal: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("get wait signal lock failed: {}", e))?;
         if *wait_signal {
-            info!("等待ctrl+c信号...");
+            info!("等待 ctrl+c 信号...");
             shutdown_signal().await;
-            info!("收到ctrl+c信号，正在关闭应用...");
+            info!("收到 ctrl+c 信号，正在关闭应用...");
         }
-        self.shutdown_components().await.context("shutdown component failed")?;
+
+        // 关闭组件
+        self.shutdown_components().await.context("shutdown component failed.")?;
         println!("应用已退出");
         sleep(Duration::from_millis(100)).await;
-
         Ok(())
     }
 
-    // 根据策略初始化组件
+    /// 根据策略初始化组件
     async fn init_components_with_strategy(&self, strategy: InitStrategy) -> Result<()> {
-        let config = self.config.read().await;
-        let mut components = HashMap::new();
+        let inner = self.inner.clone();
+        // 取出所有工厂并清空内部存储
+        let (factories, _) = self.component_factories.take_factories();
 
-        let factories = self
-            .component_factories
-            .lock()
-            .map_err(|e| anyhow::anyhow!("get component factories locked failed: {}", e))?;
-        let factories = &factories.0;
+        // 过滤需要初始化的工厂
         let filtered_factories: Vec<_> = match strategy {
             InitStrategy::All => factories.iter().collect(),
             InitStrategy::None => Vec::new(),
@@ -298,59 +272,58 @@ impl<T: Subcommand + Clone + 'static> App<T> {
             }
         };
 
-        // 阶段1: 按注册顺序创建组件实例
+        // 阶段 1: 创建组件实例（按注册顺序）
         for (key, factory) in &filtered_factories {
-            let context = ComponentContext { config: &config, components: &components };
-            // Call the create method on the boxed AnyComponentFactory trait object
-            let component = factory.create(&context, &key.label).await?;
-            let type_name = component.type_name();
-            components.insert(key.clone(), component);
-            info!(com = type_name, label = key.label, "创建组件成功");
+            let component = factory.create(inner.clone(), key.label.clone()).await?;
+            let arc_component: Arc<dyn DynComponent> = Arc::from(component);
+            let type_name = arc_component.type_name();
+            let mut components = inner.components.write().await;
+            components.insert(key.clone(), arc_component);
+            info!(com = type_name, label = &key.label, "组件创建成功");
         }
 
-        // 阶段2: 按注册顺序调用init方法
+        // 阶段 2: 初始化组件（按注册顺序）
         for (key, _) in &filtered_factories {
-            let component = components
-                .get_mut(key)
-                .context(format!("Component key {:?} not found in components map", key))?;
+            let components = inner.components.read().await;
+            let component = components.get(key).context(format!("component {:?} not found in map", key))?;
             let type_name = component.type_name();
-            component.init(&config, &key.label).await?;
-            info!(com = type_name, label = key.label, "初始化组件成功");
+            let config = inner.config.read().await;
+            component.init(&config, key.label.clone()).await?;
+            info!(com = type_name, label = &key.label, "组件初始化成功");
         }
 
-        *self.components.write().await = components;
         Ok(())
     }
 
-    // 关闭所有组件
+    /// 关闭所有组件
     async fn shutdown_components(&self) -> Result<()> {
-        let mut components = self.components.write().await;
+        let inner = self.inner.clone();
+        let mut components = inner.components.write().await;
         let mut component_keys: Vec<ComponentKey> = components.keys().cloned().collect();
-        component_keys.reverse(); // 反向关闭
+        component_keys.reverse(); // 反向关闭（依赖顺序相反）
 
         for key in component_keys {
-            if let Some(component) = components.get_mut(&key) {
+            if let Some(component) = components.get(&key) {
                 let type_name = component.type_name();
                 component.shutdown().await?;
-                info!(com = type_name, label = key.label, "关闭组件成功");
+                info!(com = type_name, label = &key.label, "组件关闭成功");
             }
         }
+
+        // 清除组件
         components.clear();
         Ok(())
     }
 
-    // 加载配置文件
+    /// 加载配置文件
     async fn load_config(&self, config_path: &Option<PathBuf>) -> Result<()> {
         let mut config_builder = Config::builder();
-
         if let Some(path) = config_path {
-            let path = fs::canonicalize(path).context(format!("Failed to canonicalize config path: {:?}", path))?;
+            let path = fs::canonicalize(path).context(format!("canonicalize config path failed: {:?}", path))?;
             config_builder = config_builder.add_source(File::from(path));
         }
-
-        let config = config_builder.build().context("load config file failed")?;
-
-        *self.config.write().await = config;
+        let config = config_builder.build().context("config load failed")?;
+        *self.inner.config.write().await = config;
         Ok(())
     }
 }
@@ -362,6 +335,7 @@ impl<T: Subcommand + Clone + 'static> Default for App<T> {
 }
 
 impl App<EmptyCommand> {
+    /// 创建带有空命令的应用实例
     pub fn with_empty_command() -> Self {
         Self::new()
     }

@@ -21,6 +21,7 @@ once_cell = { workspace = true }
 vergen-pretty = { version = "1.0.1", features = ["color", "header", "trace"] }
 vergen-gix = { version = "1.0.9", features = ["build", "cargo", "rustc", "si"], optional = true }
 anyhow = {version = "1.0.98"}
+arc-swap = "1.7.1"
 
 [features]
 default = []
