@@ -14,7 +14,7 @@ pub struct DbComponent {
 }
 
 impl DbComponent {
-    pub async fn new(inner: Arc<ApplicationInner>, label: String) -> baizekit_app::anyhow::Result<Self> {
+    pub async fn new(inner: Arc<ApplicationInner>, _label: String) -> baizekit_app::anyhow::Result<Self> {
         let conf = inner.config().await;
         let db_conf: connection::Config = conf.get("db")?;
         info!(dsn_url = db_conf.url, search_path = ?db_conf.schema, "连接数据库");
@@ -22,7 +22,10 @@ impl DbComponent {
         Ok(DbComponent { db, connections: Default::default() })
     }
 
-    async fn new_multi_connections(inner: Arc<ApplicationInner>, label: String) -> baizekit_app::anyhow::Result<Self> {
+    pub async fn new_multi_connections(
+        inner: Arc<ApplicationInner>,
+        _label: String,
+    ) -> baizekit_app::anyhow::Result<Self> {
         let conf = inner.config().await;
 
         // 默认数据库连接

@@ -6,7 +6,7 @@ use std::any::Any;
 #[async_trait]
 pub trait Component: Send + Sync + 'static {
     /// 初始化组件
-    async fn init(&self, _config: &Config, _label: String) -> anyhow::Result<()> {
+    async fn init(&mut self, _config: &Config, _label: String) -> anyhow::Result<()> {
         Ok(())
     }
 

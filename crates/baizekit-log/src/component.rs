@@ -13,7 +13,7 @@ pub struct LogComponent {
 }
 
 impl LogComponent {
-    pub async fn new(inner: Arc<ApplicationInner>, label: String) -> baizekit_app::anyhow::Result<Self> {
+    pub async fn new(inner: Arc<ApplicationInner>, _label: String) -> baizekit_app::anyhow::Result<Self> {
         let conf = inner.config().await;
         let conf: LogConfig = conf.get("log")?;
 

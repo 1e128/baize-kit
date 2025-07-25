@@ -35,29 +35,28 @@ pub struct ApplicationInner {
 }
 
 impl ApplicationInner {
-    /// 获取组件（返回 Option<Arc<dyn DynComponent>>）
-    pub async fn get_component<C: DynComponent + 'static>(&self, label: Option<&str>) -> Option<Arc<dyn DynComponent>> {
+    /// 获取组件（返回 Option<Arc<C>>）
+    pub async fn get_component<C: DynComponent + 'static>(&self, label: Option<&str>) -> Option<Arc<C>> {
         let type_id = TypeId::of::<C>();
         let label = label.unwrap_or("default").to_string();
         let key = ComponentKey { type_id, label };
-        let components = self.components.read().await;
-        components.get(&key).cloned()
-    }
 
-    /// 强制获取组件（返回 Result<Arc<dyn DynComponent>>）
-    pub async fn must_get_component<C: DynComponent + 'static>(
-        &self,
-        label: Option<&str>,
-    ) -> Result<Arc<dyn DynComponent>> {
-        let type_id = TypeId::of::<C>();
-        let type_name = std::any::type_name::<C>();
-        let label = label.unwrap_or("default").to_string();
-        let key = ComponentKey { type_id, label: label.clone() };
         let components = self.components.read().await;
         components
             .get(&key)
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("component not found: type={:?}, label={}", type_name, label))
+            // 将 Arc<dyn DynComponent> 向下转型为 Arc<C>
+            .and_then(|arc| Arc::downcast(arc).ok())
+    }
+
+    /// 强制获取组件（返回 Result<Arc<C>>）
+    pub async fn must_get_component<C: DynComponent + 'static>(&self, label: Option<&str>) -> Result<Arc<C>> {
+        let type_name = std::any::type_name::<C>();
+        let label_str = label.unwrap_or("default");
+
+        self.get_component(label).await.ok_or_else(|| {
+            anyhow::anyhow!("component not found or type mismatch: type={}, label={}", type_name, label_str)
+        })
     }
 
     /// 获取配置（返回读锁 Guard）
@@ -272,24 +271,22 @@ impl<T: Subcommand + Clone + 'static> App<T> {
             }
         };
 
-        // 阶段 1: 创建组件实例（按注册顺序）
+        // 合并后的组件创建与初始化阶段（按注册顺序）
         for (key, factory) in &filtered_factories {
-            let component = factory.create(inner.clone(), key.label.clone()).await?;
-            let arc_component: Arc<dyn DynComponent> = Arc::from(component);
-            let type_name = arc_component.type_name();
-            let mut components = inner.components.write().await;
-            components.insert(key.clone(), arc_component);
-            info!(com = type_name, label = &key.label, "组件创建成功");
-        }
-
-        // 阶段 2: 初始化组件（按注册顺序）
-        for (key, _) in &filtered_factories {
-            let components = inner.components.read().await;
-            let component = components.get(key).context(format!("component {:?} not found in map", key))?;
+            // 1. 创建组件实例（此时为可变状态）
+            let mut component = factory.create(inner.clone(), key.label.clone()).await?;
             let type_name = component.type_name();
+
+            // 2. 立即初始化组件（使用可变引用）
             let config = inner.config.read().await;
             component.init(&config, key.label.clone()).await?;
-            info!(com = type_name, label = &key.label, "组件初始化成功");
+            info!(com = type_name, label = &key.label, "组件创建并初始化成功");
+
+            // 3. 转换为Arc并存储（初始化完成后转为不可变共享）
+            let arc_component: Arc<dyn DynComponent> = Arc::from(component);
+            //因为上面组件init或者factory都有可能会获取component,所以只能在循环中获取写锁
+            let mut components = inner.components.write().await;
+            components.insert(key.clone(), arc_component);
         }
 
         Ok(())

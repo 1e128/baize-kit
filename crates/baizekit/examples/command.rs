@@ -43,7 +43,6 @@ async fn main() -> anyhow::Result<()> {
                         info!("Serving Axum application...");
                         // 在这里可以启动 Axum 服务器
                         let axum = app.must_get_component::<AxumComponent>(None::<&str>).await?;
-                        let axum = Arc::downcast::<AxumComponent>(axum);
                     }
                     Commands::PrintPort => {
                         //这里让app不要等待关闭信号

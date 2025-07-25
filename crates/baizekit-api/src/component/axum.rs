@@ -96,7 +96,7 @@ impl AxumComponent {
 
 #[async_trait]
 impl Component for AxumComponent {
-    async fn init(&self, config: &Config, label: String) -> anyhow::Result<()> {
+    async fn init(&mut self, config: &Config, label: String) -> anyhow::Result<()> {
         let conf: AxumComponentConfig = config.get("server")?;
 
         // 绑定地址
