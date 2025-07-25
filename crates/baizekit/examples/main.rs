@@ -9,8 +9,8 @@ async fn main() -> anyhow::Result<()> {
     use baizekit::component::{DbComponent, LogComponent};
 
     new_app!()
-        .register_component_factory(None::<&str>, LogComponent::new)
-        .register_component_factory(None::<&str>, DbComponent::new)
+        .register_component_factory(None, LogComponent::new)
+        .register_component_factory(None, DbComponent::new)
         .set_default_handler(|_app, _| {
             let fut = async {
                 info!("Default handler executed.");

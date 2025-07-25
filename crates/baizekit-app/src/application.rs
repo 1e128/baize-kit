@@ -145,7 +145,7 @@ impl<T: Subcommand + Clone + 'static> App<T> {
     }
 
     /// 注册组件工厂
-    pub fn register_component_factory<Comp, F, Fut>(&self, label: Option<impl Into<String>>, factory: F) -> &Self
+    pub fn register_component_factory<Comp, F, Fut>(&self, label: Option<String>, factory: F) -> &Self
     where
         Comp: DynComponent + 'static,
         F: Fn(Arc<ApplicationInner>, String) -> Fut + Send + Sync + 'static,

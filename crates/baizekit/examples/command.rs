@@ -24,9 +24,9 @@ async fn main() -> anyhow::Result<()> {
     use baizekit::component::{DbComponent, LogComponent};
 
     new_app!(Commands) // 修改为带有 Commands 子命令
-        .register_component_factory(None::<&str>, LogComponent::new)
-        .register_component_factory(None::<&str>, DbComponent::new)
-        .register_component_factory(None::<&str>, AxumComponent::new) // 注册 AxumComponent
+        .register_component_factory(None, LogComponent::new)
+        .register_component_factory(None, DbComponent::new)
+        .register_component_factory(None, AxumComponent::new) // 注册 AxumComponent
         .set_default_handler(|_app, _factories| {
             let fut = async {
                 info!("Default handler executed.");

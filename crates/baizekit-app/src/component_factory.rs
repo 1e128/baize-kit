@@ -44,7 +44,7 @@ impl ComponentFactoryManager {
     }
 
     /// 注册组件工厂
-    pub fn register_component_factory<Comp, F, Fut>(&self, label: Option<impl Into<String>>, factory: F)
+    pub fn register_component_factory<Comp, F, Fut>(&self, label: Option<String>, factory: F)
     where
         Comp: DynComponent + 'static,
         F: Fn(Arc<ApplicationInner>, String) -> Fut + Send + Sync + 'static,
