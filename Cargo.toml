@@ -7,7 +7,7 @@ resolver = "3"
 
 
 [workspace.package]
-version = "0.1.25"
+version = "0.1.26"
 edition = "2024"
 rust-version = "1.88.0"
 homepage = "https://github.com/1e128/baize-kit"
@@ -18,7 +18,7 @@ keywords = ["api", "log", "seaorm", "serde", "toolkit"]
 categories = ["database", "web-programming"]
 
 [workspace.dependencies]
-baizekit-api = "0.1.25"
+baizekit-api = "0.1.26"
 baizekit-app = "0.1.25"
 baizekit-derive = "0.1.25"
 baizekit-kafka = "0.1.25"

@@ -28,7 +28,7 @@ pub mod db {
 }
 
 pub mod component {
-    pub use baizekit_api::component::axum::{AxumComponent, AxumComponentConfig, AxumServiceInfo};
+    pub use baizekit_api::component::axum::*;
     pub use baizekit_app::component::{Component, DynComponent};
     pub use baizekit_log::component::LogComponent;
     pub use baizekit_seaorm::component::DbComponent;
