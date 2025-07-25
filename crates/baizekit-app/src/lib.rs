@@ -5,7 +5,7 @@ pub mod signal;
 pub mod version;
 pub mod component_factory;
 
-pub use {anyhow, async_trait, config, vergen_pretty};
+pub use {anyhow, async_trait, config, vergen_pretty, clap};
 
 #[macro_export]
 macro_rules! new_app {

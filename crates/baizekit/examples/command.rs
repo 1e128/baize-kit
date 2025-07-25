@@ -1,5 +1,4 @@
 use baizekit::app::anyhow;
-use baizekit::app::anyhow::Context;
 use baizekit::app::async_trait::async_trait;
 use baizekit_app::application::{ApplicationInner, ComponentKey, InitStrategy};
 use baizekit_app::component::Component;
@@ -36,13 +35,12 @@ async fn main() -> anyhow::Result<()> {
             (InitStrategy::Only(inits), fut)
         })
         .register_command_handler(|command, app, _factories| {
-            // 注册命令处理器
-            let fut = async move {
+            (InitStrategy::All, async move {
                 match command {
                     Commands::Serve => {
                         info!("Serving Axum application...");
                         // 在这里可以启动 Axum 服务器
-                        let axum = app.must_get_component::<AxumComponent>(None::<&str>).await?;
+                        let axum = app.must_get_component::<AxumComponent>(None).await?;
                     }
                     Commands::PrintPort => {
                         //这里让app不要等待关闭信号
@@ -50,8 +48,7 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
                 Ok(())
-            };
-            (InitStrategy::All, fut)
+            })
         })
         .run()
         .await
@@ -68,7 +65,7 @@ pub struct AxumComponent {
 
 impl AxumComponent {
     pub async fn new(ctx: Arc<ApplicationInner>, label: String) -> anyhow::Result<Self> {
-        let config: AxumConfig = ctx.config().await.get("server").context("Failed to get server config")?;
+        let config: AxumConfig = ctx.config().await.get("server")?;
         info!("AxumComponent new with config: {:?}", config);
         Ok(AxumComponent { config })
     }
